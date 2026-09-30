@@ -163,7 +163,7 @@ const freeTable = () => {
         <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div class="min-w-0">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a18262]">Escaneá y elegí</p>
-            <h1 class="mt-1 font-serif text-3xl font-bold sm:text-4xl">Vendimia</h1>
+            <h1 class="mt-1 font-serif text-3xl font-bold sm:text-4xl">Menú de Comidas</h1>
           </div>
           <span class="w-fit shrink-0 rounded-full bg-[#20160f] px-3 py-2 text-xs font-bold text-white sm:px-4">
             Mesa 4
