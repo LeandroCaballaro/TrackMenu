@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
+import logoIcono from '../assets/2.png'
 
 defineProps({
   error: { type: String, default: '' },
@@ -18,9 +19,12 @@ const submit = () => emit('submit', { name: name.value, email: email.value, pass
   <div class="fixed inset-0 z-[60] flex items-end justify-center bg-[#20160f]/50 p-3 sm:items-center sm:p-5" @click.self="emit('close')">
     <section class="w-full max-w-md rounded-3xl bg-[#fffaf2] p-5 shadow-2xl sm:p-7" aria-labelledby="register-title">
       <div class="flex items-start justify-between gap-4">
-        <div>
-          <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#a18262]">Cuenta TrackMenú</p>
-          <h2 id="register-title" class="mt-1 font-serif text-2xl font-bold">Crear cuenta</h2>
+        <div class="flex items-center gap-3">
+          <img :src="logoIcono" alt="TrackMenú" class="h-10 w-10 shrink-0 rounded-xl object-contain" />
+          <div>
+            <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#a18262]">Cuenta TrackMenú</p>
+            <h2 id="register-title" class="mt-0.5 font-serif text-2xl font-bold">Crear cuenta</h2>
+          </div>
         </div>
         <button type="button" @click="emit('close')" aria-label="Cerrar" class="rounded-full p-2 text-[#806f5d] hover:bg-[#f0e5d5]"><X :size="18" /></button>
       </div>

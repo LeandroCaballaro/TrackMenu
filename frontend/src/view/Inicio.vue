@@ -2,7 +2,9 @@
 import { ref, computed } from 'vue'
 import Login from './Login.vue'
 import Registro from './Registro.vue'
-import {ArrowRight, Bell,Check,CircleDollarSign,Clock3,  LayoutGrid,LogIn,Plus,ShoppingBag,Smartphone,Utensils,UserRound,X,
+import logoIcono from '../assets/2.png'
+import {
+  ArrowRight, Bell, Check, CircleDollarSign, Clock3, LayoutGrid, LogIn, Plus, ShoppingBag, Smartphone, Utensils, UserRound, X,
 } from 'lucide-vue-next'
 
 const burgerImage = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-qw3nfbnetm1rXMnXgRGCZbDkTOypHG.png'
@@ -218,12 +220,16 @@ const freeTable = () => {
       <div
         class="mx-auto flex w-full min-w-0 max-w-[1400px] flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div class="flex items-center gap-3">
-          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#20160f] text-[#f7cf7a]">
-            <Utensils :size="19" />
-          </div>
-          <div>
-            <p class="font-serif text-xl font-bold leading-none">TrackMenú</p>
-            <p class="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#9c8770]">
+          <img
+            :src="logoIcono"
+            alt="TrackMenú Icono"
+            class="h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20"
+          />
+          <div class="flex flex-col justify-center">
+            <span class="font-girassol text-[27px] font-normal leading-none tracking-wide text-[#d65d2a] sm:text-[27px]">
+              TrackMenú
+            </span>
+            <p class="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a18262] sm:text-[11px]">
               Pedidos simples, mesas al día
             </p>
           </div>
@@ -255,7 +261,7 @@ const freeTable = () => {
         <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div class="min-w-0">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a18262]">Escaneá y elegí</p>
-            <h1 class="mt-1 font-serif text-3xl font-bold sm:text-4xl">Vendimia</h1>
+            <h1 class="mt-1 font-serif text-3xl font-bold sm:text-4xl">Trackea tu Menú</h1>
           </div>
           <span class="w-fit shrink-0 rounded-full bg-[#20160f] px-3 py-2 text-xs font-bold text-white sm:px-4">
             Mesa 4

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Girassol&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -14,4 +15,8 @@ body {
 
 .font-serif {
   font-family: Georgia, 'Times New Roman', Cambria, serif;
+}
+
+.font-girassol {
+  font-family: 'Girassol', cursive, serif;
 }
