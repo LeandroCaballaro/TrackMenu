@@ -1,38 +1,95 @@
-# BarSaaS
+# TrackMenu 🍽️
 
-This template should help get you started developing with Vue 3 in Vite.
+Sistema de gestión y pedidos para restaurantes y bares.
 
-## Recommended IDE Setup
+## 📁 Estructura del Proyecto
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+```
+TrackMenu/
+├── backend/               # Servidor API REST (Node.js + Express)
+│   ├── src/
+│   │   ├── controllers/   # Lógica de controladores (auth, mesas, pedidos, productos)
+│   │   ├── routes/        # Definición de rutas API (/api/...)
+│   │   ├── data/          # Datos y mocks de prueba
+│   │   ├── middlewares/   # Manejo de errores y middlewares
+│   │   ├── app.js         # Configuración de Express
+│   │   └── server.js      # Punto de entrada y listener del servidor
+│   ├── .env               # Variables de entorno
+│   └── package.json
+│
+├── frontend/              # Aplicación cliente (Vue 3 + Vite + TailwindCSS)
+│   ├── src/
+│   │   ├── view/          # Vistas (Inicio, Login, Registro)
+│   │   ├── assets/        # Estilos y recursos estáticos
+│   │   ├── App.vue        # Componente raíz
+│   │   └── main.js        # Punto de entrada de Vue
+│   ├── index.html
+│   └── package.json
+│
+└── package.json           # Scripts unificados para ejecutar el monorepo
+```
 
-## Recommended Browser Setup
+---
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## 🚀 Inicio Rápido
 
-## Customize configuration
+### 1. Instalar dependencias
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+Desde la raíz del proyecto:
+```bash
+npm run install:all
+```
 
-## Project Setup
+O individualmente:
+```bash
+# Frontend
+cd frontend
+npm install
 
-```sh
+# Backend
+cd ../backend
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+---
 
-```sh
-npm run dev
-```
+### 2. Ejecutar en Modo Desarrollo
 
-### Compile and Minify for Production
+#### Opción A: Desde la raíz
+- Iniciar Frontend:
+  ```bash
+  npm run dev:frontend
+  ```
+- Iniciar Backend (puerto 3000):
+  ```bash
+  npm run dev:backend
+  ```
 
-```sh
-npm run build
-```
+#### Opción B: En cada carpeta por separado
+- **Frontend** (`http://localhost:5173`):
+  ```bash
+  cd frontend
+  npm run dev
+  ```
+- **Backend** (`http://localhost:3000`):
+  ```bash
+  cd backend
+  npm run dev
+  ```
+
+---
+
+## 📡 Endpoints del Backend (`/api`)
+
+- `GET  /api/health` - Estado del servidor
+- `GET  /api/products` - Lista de productos (soporta filtro `?category=...`)
+- `GET  /api/products/:id` - Detalle de producto
+- `POST /api/products` - Crear producto
+- `GET  /api/tables` - Lista de mesas y su estado
+- `GET  /api/tables/:number` - Detalle de mesa
+- `POST /api/tables/:number/liberar` - Cobrar y liberar mesa
+- `POST /api/tables/:number/ocupar` - Asignar orden a mesa
+- `GET  /api/orders` - Lista de pedidos en cocina
+- `POST /api/orders` - Crear nuevo pedido
+- `POST /api/auth/login` - Iniciar sesión
+- `POST /api/auth/register` - Registro de usuario
