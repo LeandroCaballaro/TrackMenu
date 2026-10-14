@@ -17,4 +17,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.js'],
+    setupFiles: ['./src/tests/setup.js'],
+  },
 })

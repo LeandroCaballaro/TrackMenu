@@ -206,20 +206,28 @@ async function eliminarProducto(producto) {
     return
   }
 
+  let aviso = ''
+
   if (producto.imagen_ruta) {
     const { error: errorImagen } = await supabase.storage
       .from('productos')
       .remove([producto.imagen_ruta])
 
     if (errorImagen) {
-      errorMensaje.value = 'El producto se eliminó, pero no se pudo borrar su imagen.'
+      aviso = 'El producto se eliminó, pero no se pudo borrar su imagen.'
     }
   }
 
-  if (!errorMensaje.value) mensaje.value = 'Producto eliminado correctamente.'
   if (productoEditandoId.value === producto.id) limpiarFormulario()
 
   await cargarProductos(false)
+
+  if (aviso) {
+    errorMensaje.value = aviso
+  } else {
+    mensaje.value = 'Producto eliminado correctamente.'
+  }
+
   cargando.value = false
 }
 

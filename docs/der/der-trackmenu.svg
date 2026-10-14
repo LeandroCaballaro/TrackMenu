@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2800 1900" width="100%" role="img" aria-label="Diagrama entidad-relacion de TrackMenu">
+<rect width="2800" height="1900" fill="#0b0b0f" />
+<text x="1400" y="70" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700" text-anchor="middle">TrackMenu — Diagrama entidad-relacion</text>
+<line x1="200" y1="270" x2="165.15486139424098" y2="208.01579327533065" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="100" cy="190" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="100" y="190" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="340" y1="270" x2="348.40244774589416" y2="192.75424156094337" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="340" cy="155" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="340" y="155" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">email</text>
+<line x1="1140" y1="270" x2="1174.549406374855" y2="190.67753588365915" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1120" cy="165" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1120" y="165" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="1330" y1="270" x2="1317.8344749394037" y2="187.48296910562146" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1330" cy="150" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1330" y="150" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">nombre</text>
+<line x1="1460" y1="270" x2="1469.253015067874" y2="191.7004505515468" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1530" cy="170" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1530" y="170" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">slug</text>
+<line x1="1460" y1="270" x2="1629.6234789139098" y2="211.7452707488272" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1700" cy="200" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1700" y="200" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">cuit</text>
+<line x1="1140" y1="270" x2="979.8488204106504" y2="211.7452707488272" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="900" cy="200" rx="83.96000000000001" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="900" y="200" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">direccion</text>
+<line x1="1140" y1="390" x2="1042.125258611181" y2="446.0720683014654" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="970" cy="460" rx="77.52000000000001" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="970" y="460" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">telefono</text>
+<line x1="1420" y1="390" x2="1379.7298582226724" y2="483.11947109294897" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1420" cy="515" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1420" y="515" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">activo</text>
+<line x1="1460" y1="390" x2="1553.5656305522398" y2="464.275488116555" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1630" cy="480" rx="83.96000000000001" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1630" y="480" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">creado_en</text>
+<line x1="2460" y1="270" x2="2484.34595670864" y2="217.5314039923956" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2550" cy="200" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2550" y="200" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="2460" y1="310" x2="2556.135531249292" y2="312.29881229527183" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2630" cy="310" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2630" y="310" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">nombre</text>
+<line x1="2460" y1="390" x2="2529.1208548936347" y2="409.08078034847887" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2600" cy="420" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2600" y="420" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">orden</text>
+<line x1="2360" y1="390" x2="2335.3713112876" y2="464.1663673238502" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2360" cy="500" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2360" y="500" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">activa</text>
+<line x1="2140" y1="390" x2="2217.9753927936317" y2="468.5339356675909" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2130" cy="495" rx="122.60000000000001" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="2130" y="495" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">organizacion_id</text>
+<line x1="2460" y1="890" x2="2532.9424476403506" y2="826.0696476825827" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2600" cy="810" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2600" y="810" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="2460" y1="920" x2="2576.2703479709103" y2="923.2452433711645" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2650" cy="920" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2650" y="920" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">nombre</text>
+<line x1="2460" y1="1010" x2="2565.466045091786" y2="1021.756642602891" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2660" cy="1030" rx="96.84" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2660" y="1030" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">descripcion</text>
+<line x1="2460" y1="1010" x2="2536.545523497272" y2="1110.449161293754" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2600" cy="1130" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2600" y="1130" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">precio</text>
+<line x1="2430" y1="1010" x2="2391.7109689207196" y2="1132.4821846239377" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2430" cy="1165" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2430" y="1165" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">stock</text>
+<line x1="2190" y1="1010" x2="2223.7052095192353" y2="1131.170569806861" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2190" cy="1165" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2190" y="1165" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">activo</text>
+<line x1="2140" y1="1010" x2="2053.220593081523" y2="1075.1591058194656" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1970" cy="1090" rx="90.4" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1970" y="1090" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">imagen_url</text>
+<line x1="2140" y1="980" x2="2036.505491228434" y2="976.8442717655579" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1940" cy="980" rx="96.84" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1940" y="980" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">imagen_ruta</text>
+<line x1="2140" y1="890" x2="2078.5180609358213" y2="869.7239172920188" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1960" cy="860" rx="122.60000000000001" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="1960" y="860" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">organizacion_id</text>
+<line x1="2240" y1="890" x2="2272.660003674219" y2="806.0499653259195" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2240" cy="770" rx="103.28" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="2240" y="770" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">categoria_id</text>
+<line x1="260" y1="930" x2="234.01230800537346" y2="864.0652874113301" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="170" cy="845" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="170" y="845" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="260" y1="950" x2="193.35086465051498" y2="955.0222213634587" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="120" cy="950" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="120" y="950" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">numero</text>
+<line x1="260" y1="1050" x2="201.76370796992097" y2="1051.365274606956" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="120" cy="1060" rx="83.96000000000001" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="120" y="1060" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">capacidad</text>
+<line x1="260" y1="1050" x2="250.12783054659673" y2="1132.8495007328343" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="190" cy="1155" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="190" y="1155" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">estado</text>
+<line x1="580" y1="1050" x2="566.7375262788987" y2="1129.515959535912" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="670" cy="1150" rx="122.60000000000001" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="670" y="1150" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">organizacion_id</text>
+<line x1="1140" y1="1430" x2="1101.9357514340425" y2="1340.7954757933428" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1040" cy="1320" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1040" y="1320" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="underline">id</text>
+<line x1="1240" y1="1430" x2="1262.2837212273453" y2="1336.2361412750975" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1240" cy="1300" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1240" y="1300" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">estado</text>
+<line x1="1450" y1="1430" x2="1391.1684598395805" y2="1343.8517508898813" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1450" cy="1315" rx="90.4" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1450" y="1315" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">medio_pago</text>
+<line x1="1460" y1="1430" x2="1570.2187153148661" y2="1382.6471644739352" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1640" cy="1370" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1640" y="1370" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">total</text>
+<line x1="1140" y1="1550" x2="982.2419837053253" y2="1544.6259884629821" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="880" cy="1550" rx="103.28" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="880" y="1550" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">atendido_por</text>
+<line x1="1140" y1="1550" x2="1046.4343694477602" y2="1624.275488116555" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="970" cy="1640" rx="83.96000000000001" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="970" y="1640" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">creado_en</text>
+<line x1="1190" y1="1550" x2="1234.4154352986445" y2="1651.9028182257687" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1190" cy="1685" rx="90.4" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="1190" y="1685" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">cerrado_en</text>
+<line x1="1420" y1="1550" x2="1356.9228203845853" y2="1657.4152688229233" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1420" cy="1690" rx="122.60000000000001" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="1420" y="1690" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">organizacion_id</text>
+<line x1="1460" y1="1550" x2="1562.6328806677673" y2="1624.275488116555" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="1630" cy="1640" rx="74" ry="38" fill="#0b0b0f" stroke="#d65d2a" stroke-width="2" />
+<text x="1630" y="1640" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="23" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">mesa_id</text>
+<line x1="360" y1="330" x2="830" y2="330" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="830" y1="330" x2="1300" y2="330" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="830,256 970,330 830,404 690,330" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="830" y="330" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Pertenece</text>
+<text x="501" y="304" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<text x="1159" y="304" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">M</text>
+<line x1="830" y1="404" x2="705" y2="536" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="705" cy="574" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="705" y="574" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">rol</text>
+<line x1="830" y1="404" x2="955" y2="536" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="955" cy="574" rx="74" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="955" y="574" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">activo</text>
+<line x1="1300" y1="330" x2="1800" y2="330" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="1800" y1="330" x2="2300" y2="330" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="1800,256 1940,330 1800,404 1660,330" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="1800" y="330" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Define</text>
+<text x="1450" y="304" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">1</text>
+<text x="2150" y="304" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<line x1="2300" y1="330" x2="2300" y2="640" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="2300" y1="640" x2="2300" y2="950" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="2300,566 2440,640 2300,714 2160,640" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="2300" y="640" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Agrupa</text>
+<text x="2300" y="397" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">1</text>
+<text x="2300" y="831" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<line x1="1300" y1="330" x2="800" y2="990" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="800" y1="990" x2="420" y2="990" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="800,916 940,990 800,1064 660,990" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="800" y="990" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Dispone</text>
+<text x="1150" y="502" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">1</text>
+<text x="534" y="964" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<line x1="420" y1="990" x2="420" y2="1490" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="420" y1="1490" x2="1300" y2="1490" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="420,1416 560,1490 420,1564 280,1490" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="420" y="1490" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Recibe</text>
+<text x="420" y="1114" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">1</text>
+<text x="1036" y="1464" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<line x1="2300" y1="950" x2="2300" y2="1490" stroke="#f4f1ec" stroke-width="2"  />
+<line x1="2300" y1="1490" x2="1300" y2="1490" stroke="#f4f1ec" stroke-width="2"  />
+<polygon points="2300,1416 2440,1490 2300,1564 2160,1490" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2.5" />
+<text x="2300" y="1490" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">Detalle</text>
+<text x="2300" y="1086" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">N</text>
+<text x="1600" y="1464" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">M</text>
+<line x1="2300" y1="1564" x2="2050" y2="1696" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2050" cy="1734" rx="75.28" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2050" y="1734" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">cantidad</text>
+<line x1="2300" y1="1564" x2="2300" y2="1696" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2300" cy="1734" rx="118.4" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2300" y="1734" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">precio_unitario</text>
+<line x1="2300" y1="1564" x2="2550" y2="1696" stroke="#f4f1ec" stroke-width="2" opacity="0.7" />
+<ellipse cx="2550" cy="1734" rx="75.28" ry="38" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" />
+<text x="2550" y="1734" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="middle" text-decoration="none">subtotal</text>
+<rect x="200" y="270" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="2" stroke-dasharray="10 7" />
+<text x="360" y="330" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">auth.users</text>
+<rect x="1140" y="270" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="3" stroke-dasharray="none" />
+<text x="1300" y="330" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">organizacion</text>
+<rect x="2140" y="270" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="3" stroke-dasharray="none" />
+<text x="2300" y="330" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">categoria</text>
+<rect x="2140" y="890" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="3" stroke-dasharray="none" />
+<text x="2300" y="950" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">producto</text>
+<rect x="260" y="930" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="3" stroke-dasharray="none" />
+<text x="420" y="990" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">mesa</text>
+<rect x="1140" y="1430" width="320" height="120" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="3" stroke-dasharray="none" />
+<text x="1300" y="1490" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="32" font-weight="700" text-anchor="middle" dominant-baseline="middle" text-decoration="none">pedido</text>
+<rect x="60" y="1670" width="640" height="170" fill="#0b0b0f" stroke="#f4f1ec" stroke-width="1.5" />
+<text x="95" y="1715" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">Referencias</text>
+<text x="95" y="1755" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22"><tspan text-decoration="underline">atributo</tspan> = clave primaria</text>
+<text x="95" y="1792" fill="#d65d2a" font-family="Segoe UI, Arial, sans-serif" font-size="22">atributo = clave foranea</text>
+<text x="95" y="1829" fill="#f4f1ec" font-family="Segoe UI, Arial, sans-serif" font-size="22">borde punteado = tabla de Supabase Auth</text>
+</svg>
