@@ -247,11 +247,18 @@ const freeTable = () => {
             <LayoutGrid :size="14" /> Cajero
           </button>
         </div>
-        <button type="button" @click="openAuth()"
-          class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
-          <UserRound :size="15" />
-          {{ authUser ? authUser.name : 'Ingresar' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <RouterLink to="/productos"
+            class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
+            <Utensils :size="15" />
+            Administrar menú
+          </RouterLink>
+          <button type="button" @click="openAuth()"
+            class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
+            <UserRound :size="15" />
+            {{ authUser ? authUser.name : 'Ingresar' }}
+          </button>
+        </div>
       </div>
     </header>
 
