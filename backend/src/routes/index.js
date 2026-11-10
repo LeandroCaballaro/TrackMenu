@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import productsRoutes from './products.routes.js';
+import productosRoutes from './productos.routes.js';
 import tablesRoutes from './tables.routes.js';
 import ordersRoutes from './orders.routes.js';
 import authRoutes from './auth.routes.js';
@@ -11,6 +12,7 @@ apiRouter.get('/health', (req, res) => {
 });
 
 apiRouter.use('/products', productsRoutes);
+apiRouter.use('/productos', productosRoutes);
 apiRouter.use('/tables', tablesRoutes);
 apiRouter.use('/orders', ordersRoutes);
 apiRouter.use('/auth', authRoutes);

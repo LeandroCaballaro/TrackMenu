@@ -1,0 +1,165 @@
+// ABM de productos (función principal del MVP).
+// Todo pasa por req.auth.db: un cliente Supabase con el token del usuario, así
+// RLS filtra por organización y rol además de las validaciones de acá.
+
+const CAMPOS_ORDEN = ['nombre', 'precio', 'stock', 'creado_en'];
+
+// Exportada para poder testearla sola.
+export const validarProducto = (body, { parcial = false } = {}) => {
+  const errores = {};
+  const datos = {};
+  const presente = (campo) => body[campo] !== undefined && body[campo] !== null && body[campo] !== '';
+
+  if (presente('nombre')) {
+    const nombre = String(body.nombre).trim();
+    if (nombre.length < 2 || nombre.length > 80) errores.nombre = 'El nombre debe tener entre 2 y 80 caracteres';
+    else datos.nombre = nombre;
+  } else if (!parcial) {
+    errores.nombre = 'El nombre es obligatorio';
+  }
+
+  if (presente('precio')) {
+    const precio = Number(body.precio);
+    if (!Number.isFinite(precio) || precio < 0) errores.precio = 'El precio debe ser un número mayor o igual a 0';
+    else datos.precio = precio;
+  } else if (!parcial) {
+    errores.precio = 'El precio es obligatorio';
+  }
+
+  if (presente('stock')) {
+    const stock = Number(body.stock);
+    if (!Number.isInteger(stock) || stock < 0) errores.stock = 'El stock debe ser un número entero mayor o igual a 0';
+    else datos.stock = stock;
+  } else if (!parcial) {
+    datos.stock = 0;
+  }
+
+  if (body.descripcion !== undefined) {
+    const descripcion = String(body.descripcion ?? '').trim();
+    if (descripcion.length > 500) errores.descripcion = 'La descripción no puede superar los 500 caracteres';
+    else datos.descripcion = descripcion;
+  }
+
+  if (body.activo !== undefined) {
+    if (typeof body.activo !== 'boolean') errores.activo = 'El campo activo debe ser true o false';
+    else datos.activo = body.activo;
+  }
+
+  if (presente('imagen_url')) {
+    if (!/^https?:\/\/\S+$/i.test(String(body.imagen_url))) errores.imagen_url = 'La imagen debe ser una URL http(s) válida';
+    else datos.imagen_url = String(body.imagen_url);
+  }
+
+  return { valido: Object.keys(errores).length === 0, errores, datos };
+};
+
+const errorValidacion = (res, errores) =>
+  res.status(400).json({ success: false, message: 'Hay datos inválidos o incompletos', errors: errores });
+
+// GET /api/productos?q=&activo=&orden=nombre&dir=asc&pagina=1&limite=20
+export const listarProductos = async (req, res, next) => {
+  try {
+    const { q, activo, orden = 'creado_en', dir = 'desc' } = req.query;
+    const limite = Math.min(Number(req.query.limite) || 20, 100);
+    const pagina = Math.max(Number(req.query.pagina) || 1, 1);
+
+    if (!CAMPOS_ORDEN.includes(orden)) {
+      return res.status(400).json({ success: false, message: `orden debe ser uno de: ${CAMPOS_ORDEN.join(', ')}` });
+    }
+
+    let query = req.auth.db
+      .from('productos')
+      .select('*', { count: 'exact' })
+      .eq('organizacion_id', req.auth.organizacionId);
+
+    if (q) query = query.ilike('nombre', `%${q}%`);
+    if (activo === 'true' || activo === 'false') query = query.eq('activo', activo === 'true');
+
+    const desde = (pagina - 1) * limite;
+    const { data, error, count } = await query
+      .order(orden, { ascending: dir !== 'desc' })
+      .range(desde, desde + limite - 1);
+
+    if (error) throw error;
+    res.json({ success: true, total: count, pagina, limite, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const obtenerProducto = async (req, res, next) => {
+  try {
+    const { data, error } = await req.auth.db
+      .from('productos')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('organizacion_id', req.auth.organizacionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const crearProducto = async (req, res, next) => {
+  try {
+    const { valido, errores, datos } = validarProducto(req.body);
+    if (!valido) return errorValidacion(res, errores);
+
+    const { data, error } = await req.auth.db
+      .from('productos')
+      .insert([{ ...datos, usuario_id: req.auth.usuarioId, organizacion_id: req.auth.organizacionId }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(201).json({ success: true, message: 'Producto creado correctamente', data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const actualizarProducto = async (req, res, next) => {
+  try {
+    const { valido, errores, datos } = validarProducto(req.body, { parcial: true });
+    if (!valido) return errorValidacion(res, errores);
+    if (Object.keys(datos).length === 0) {
+      return res.status(400).json({ success: false, message: 'No hay campos para actualizar' });
+    }
+
+    const { data, error } = await req.auth.db
+      .from('productos')
+      .update({ ...datos, actualizado_en: new Date().toISOString() })
+      .eq('id', req.params.id)
+      .eq('organizacion_id', req.auth.organizacionId)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    res.json({ success: true, message: 'Producto modificado correctamente', data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const eliminarProducto = async (req, res, next) => {
+  try {
+    const { data, error } = await req.auth.db
+      .from('productos')
+      .delete()
+      .eq('id', req.params.id)
+      .eq('organizacion_id', req.auth.organizacionId)
+      .select()
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    res.json({ success: true, message: 'Producto eliminado correctamente', data });
+  } catch (err) {
+    next(err);
+  }
+};

@@ -18,3 +18,11 @@ export const isSupabaseConfigured = () => {
 export const supabase = isSupabaseConfigured()
   ? createClient(supabaseUrl, supabaseKey)
   : null;
+
+// Cliente que actúa como el usuario dueño del token: la base aplica RLS,
+// así la organización y el rol se validan también del lado del servidor.
+export const userClient = (token) =>
+  createClient(supabaseUrl, process.env.SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
