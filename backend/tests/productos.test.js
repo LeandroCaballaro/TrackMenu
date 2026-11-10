@@ -1,0 +1,43 @@
+// node --test tests/
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { validarProducto } from '../src/controllers/productos.controller.js';
+
+test('rechaza alta sin campos obligatorios', () => {
+  const r = validarProducto({});
+  assert.equal(r.valido, false);
+  assert.ok(r.errores.nombre);
+  assert.ok(r.errores.precio);
+});
+
+test('rechaza formatos inválidos', () => {
+  const r = validarProducto({ nombre: 'A', precio: 'abc', stock: 1.5, activo: 'si', imagen_url: 'foto.png' });
+  assert.equal(r.valido, false);
+  assert.deepEqual(
+    Object.keys(r.errores).sort(),
+    ['activo', 'imagen_url', 'nombre', 'precio', 'stock']
+  );
+});
+
+test('acepta un alta válida y normaliza', () => {
+  const r = validarProducto({ nombre: '  Milanesa  ', precio: '1500.50', descripcion: ' rica ' });
+  assert.equal(r.valido, true);
+  assert.equal(r.datos.nombre, 'Milanesa');
+  assert.equal(r.datos.precio, 1500.5);
+  assert.equal(r.datos.descripcion, 'rica');
+  assert.equal(r.datos.stock, 0);
+});
+
+test('la modificación usa las mismas reglas que el alta', () => {
+  assert.equal(validarProducto({ precio: -1 }, { parcial: true }).valido, false);
+  assert.equal(validarProducto({ nombre: 'X' }, { parcial: true }).valido, false);
+  // parcial: no exige los obligatorios, pero sí valida lo que llega
+  const ok = validarProducto({ precio: 10 }, { parcial: true });
+  assert.equal(ok.valido, true);
+  assert.deepEqual(ok.datos, { precio: 10 });
+});
+
+test('precio y stock en cero son válidos', () => {
+  const r = validarProducto({ nombre: 'Agua', precio: 0, stock: 0 });
+  assert.equal(r.valido, true);
+});

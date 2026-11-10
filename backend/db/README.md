@@ -12,7 +12,9 @@ backend/db/
 │   ├── 001_create_products_table.sql      # Tabla de productos
 │   ├── 002_create_tables_table.sql        # Tabla de mesas
 │   ├── 003_create_orders_table.sql        # Tabla de pedidos/comandas
-│   └── 004_enable_rls_and_policies.sql    # Políticas de seguridad RLS
+│   ├── 004_enable_rls_and_policies.sql    # Políticas de seguridad RLS
+│   ├── 005_create_productos_abm.sql       # Tabla productos (ABM)
+│   └── 006_organizaciones_y_roles.sql     # Organizaciones, roles y RLS por organización
 │
 ├── seeds/
 │   ├── 001_seed_products.sql              # Inserción de productos iniciales
@@ -31,7 +33,7 @@ backend/db/
 
 1. Ingresá a tu proyecto en [Supabase Dashboard](https://supabase.com/dashboard).
 2. Ve a la sección **SQL Editor**.
-3. Ejecutá en orden los archivos de `migrations/` (`001`, `002`, `003`, `004`).
+3. Ejecutá en orden los archivos de `migrations/` (`001` a `006`).
 4. Ejecutá los archivos de `seeds/` (`001`, `002`, `003`) si deseas cargar los datos de prueba.
 
 ---
