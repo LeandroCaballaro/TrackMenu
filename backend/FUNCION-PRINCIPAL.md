@@ -111,6 +111,15 @@ npm run dev          # en otra terminal, con backend/.env configurado
 npm run test:e2e
 ```
 
+Requisitos del e2e: tener aplicada la migración `006` y que Supabase **no** exija
+confirmar el email (Authentication > Sign In / Providers > *Confirm email* en
+off), porque el script registra dos cuentas nuevas. Si preferís dejar la
+confirmación activada, creá las dos cuentas a mano y pasalas por entorno:
+
+```bash
+EMAIL_A=a@dominio.com PASSWORD_A=... EMAIL_B=b@dominio.com PASSWORD_B=... npm run test:e2e
+```
+
 Recorrido completo con datos ficticios: registra dos negocios distintos, da de
 alta tres productos, busca, ordena, ve el detalle, modifica, elimina, y verifica
 que fallen los casos que deben fallar — faltan datos (`400`), formato inválido
