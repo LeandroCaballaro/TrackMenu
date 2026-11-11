@@ -41,3 +41,24 @@ test('precio y stock en cero son válidos', () => {
   const r = validarProducto({ nombre: 'Agua', precio: 0, stock: 0 });
   assert.equal(r.valido, true);
 });
+
+test('rechaza objetos y arrays en vez de texto o número', () => {
+  assert.equal(validarProducto({ nombre: { a: 1 }, precio: 10 }).valido, false);
+  assert.equal(validarProducto({ nombre: ['a', 'b'], precio: 10 }).valido, false);
+  assert.equal(validarProducto({ nombre: 'Ok', precio: true }).valido, false);
+  assert.equal(validarProducto({ nombre: 'Ok', precio: [1] }).valido, false);
+  assert.ok(validarProducto({ nombre: 'Ok', precio: 1, descripcion: { x: 1 } }).errores.descripcion);
+});
+
+test('rechaza valores que no entran en la columna', () => {
+  assert.ok(validarProducto({ nombre: 'Ok', precio: 1e21 }).errores.precio);
+  assert.ok(validarProducto({ nombre: 'Ok', precio: 1, stock: 99999999999999 }).errores.stock);
+  // los topes exactos sí entran
+  assert.equal(validarProducto({ nombre: 'Ok', precio: 9999999999.99, stock: 2147483647 }).valido, true);
+});
+
+test('no explota con un cuerpo que no es objeto', () => {
+  for (const body of [null, undefined, 'hola', 42, ['a']]) {
+    assert.equal(validarProducto(body).valido, false);
+  }
+});

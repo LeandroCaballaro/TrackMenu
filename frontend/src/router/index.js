@@ -3,6 +3,7 @@ import InicioView from '@/views/InicioView.vue'
 import LoginView from '@/views/LoginView.vue'
 import RegistroView from '@/views/RegistroView.vue'
 import ProductosView from '@/views/ProductosView.vue'
+import NoEncontradaView from '@/views/NoEncontradaView.vue'
 import { supabase } from '@/supabase'
 
 const router = createRouter({
@@ -18,6 +19,7 @@ const router = createRouter({
       component: ProductosView,
       meta: { requiereAutenticacion: true },
     },
+    { path: '/:ruta(.*)', name: 'no-encontrada', component: NoEncontradaView },
   ],
 })
 

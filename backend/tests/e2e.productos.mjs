@@ -96,8 +96,10 @@ const main = async () => {
   ok(alta.status === 201 && alta.json.success, `alta OK: ${alta.json.message}`);
   const id = alta.json?.data?.id;
 
-  await api('POST', '/productos', { token: a.token, body: { nombre: 'Agua mineral', precio: 1200, stock: 50 } });
-  await api('POST', '/productos', { token: a.token, body: { nombre: 'Flan casero', precio: 3000, stock: 5 } });
+  const extras = [
+    (await api('POST', '/productos', { token: a.token, body: { nombre: 'Agua mineral', precio: 1200, stock: 50 } })).json.data.id,
+    (await api('POST', '/productos', { token: a.token, body: { nombre: 'Flan casero', precio: 3000, stock: 5 } })).json.data.id,
+  ];
 
   // --- Alta con datos faltantes / mal formato
   const sinDatos = await api('POST', '/productos', { token: a.token, body: { descripcion: 'sin nombre' } });
@@ -154,6 +156,11 @@ const main = async () => {
   } else {
     console.log('… prueba de roles empleado/consulta omitida (definí TOKEN_CONSULTA)');
   }
+
+  // Limpieza: el script no deja sus productos dando vueltas en la base.
+  for (const id of extras) await api('DELETE', `/productos/${id}`, { token: a.token });
+  const { json: final } = await api('GET', '/productos?limite=100', { token: a.token });
+  ok(final.total === baseA, `limpieza: la organización queda con ${final.total} productos (empezó con ${baseA})`);
 
   console.log(fallas === 0 ? '\nRecorrido completo sin fallas' : `\n${fallas} verificación(es) fallaron`);
   process.exit(fallas === 0 ? 0 : 1);

@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
-import Login from './Login.vue'
-import Registro from './Registro.vue'
+import { RouterLink } from 'vue-router'
+import { supabase } from '@/supabase'
 import logoIcono from '../assets/2.png'
 import {
-  ArrowRight, Bell, Check, CircleDollarSign, Clock3, LayoutGrid, LogIn, Plus, ShoppingBag, Smartphone, Utensils, UserRound, X,
+  ArrowRight, Bell, Check, CircleDollarSign, Clock3, LayoutGrid, Plus, ShoppingBag, Smartphone, Utensils, UserRound, X,
 } from 'lucide-vue-next'
 
 const burgerImage = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-qw3nfbnetm1rXMnXgRGCZbDkTOypHG.png'
@@ -79,113 +79,10 @@ const tableOccupied = computed(() => {
   return occupied.value.includes(selectedTable.value)
 })
 
-const authUsersKey = 'trackmenu.auth.users'
-const authSessionKey = 'trackmenu.auth.session'
-const authMode = ref('login')
-const authOpen = ref(false)
-const authUser = ref(null)
-const authError = ref('')
-const authNotice = ref('')
-const authForm = ref({ currentPassword: '', newPassword: '' })
-
-const readAuthUsers = () => {
-  try {
-    const users = JSON.parse(localStorage.getItem(authUsersKey) || '[]')
-    return Array.isArray(users) ? users : []
-  } catch {
-    return []
-  }
-}
-
-try {
-  const savedSession = JSON.parse(localStorage.getItem(authSessionKey) || 'null')
-  authUser.value = readAuthUsers().find((user) => user.email === savedSession?.email) || null
-} catch {
-  authUser.value = null
-}
-
-const derivePasswordHash = async (password, salt) => {
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits'])
-  const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: Uint8Array.from(salt.match(/.{2}/g), (byte) => parseInt(byte, 16)), iterations: 120000, hash: 'SHA-256' },
-    key,
-    256,
-  )
-  return Array.from(new Uint8Array(bits), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
-const makeSalt = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join('')
-
-const openAuth = (mode = authUser.value ? 'account' : 'login') => {
-  authMode.value = mode
-  authError.value = ''
-  authNotice.value = ''
-  authForm.value = { currentPassword: '', newPassword: '' }
-  authOpen.value = true
-}
-
-const registerUser = async (form) => {
-  authError.value = ''
-  const email = form.email.trim().toLowerCase()
-  if (!form.name.trim() || !email || form.password.length < 8) {
-    authError.value = 'Completá tu nombre y correo. La contraseña debe tener al menos 8 caracteres.'
-    return
-  }
-  const users = readAuthUsers()
-  if (users.some((user) => user.email === email)) {
-    authError.value = 'Ya existe una cuenta con ese correo.'
-    return
-  }
-  const salt = makeSalt()
-  const user = { name: form.name.trim(), email, salt, passwordHash: await derivePasswordHash(form.password, salt) }
-  users.push(user)
-  localStorage.setItem(authUsersKey, JSON.stringify(users))
-  authUser.value = user
-  localStorage.setItem(authSessionKey, JSON.stringify({ email }))
-  authOpen.value = false
-}
-
-const loginUser = async (form) => {
-  authError.value = ''
-  const email = form.email.trim().toLowerCase()
-  const user = readAuthUsers().find((item) => item.email === email)
-  if (!user || await derivePasswordHash(form.password, user.salt) !== user.passwordHash) {
-    authError.value = 'Correo o contraseña incorrectos.'
-    return
-  }
-  authUser.value = user
-  localStorage.setItem(authSessionKey, JSON.stringify({ email }))
-  authOpen.value = false
-}
-
-const changePassword = async () => {
-  authError.value = ''
-  if (authForm.value.newPassword.length < 8) {
-    authError.value = 'La nueva contraseña debe tener al menos 8 caracteres.'
-    return
-  }
-  const users = readAuthUsers()
-  const index = users.findIndex((user) => user.email === authUser.value?.email)
-  const user = users[index]
-  if (!user || await derivePasswordHash(authForm.value.currentPassword, user.salt) !== user.passwordHash) {
-    authError.value = 'La contraseña actual no es correcta.'
-    return
-  }
-  const salt = makeSalt()
-  users[index] = { ...user, salt, passwordHash: await derivePasswordHash(authForm.value.newPassword, salt) }
-  localStorage.setItem(authUsersKey, JSON.stringify(users))
-  authUser.value = users[index]
-  authNotice.value = 'Tu contraseña se actualizó correctamente.'
-  authForm.value.currentPassword = ''
-  authForm.value.newPassword = ''
-  authMode.value = 'account'
-}
-
-const logoutUser = () => {
-  localStorage.removeItem(authSessionKey)
-  authUser.value = null
-  authOpen.value = false
-}
+// La sesión real es la de Supabase; esta pantalla sólo la muestra.
+const sesion = ref(null)
+supabase.auth.getSession().then(({ data }) => { sesion.value = data.session })
+supabase.auth.onAuthStateChange((_evento, nueva) => { sesion.value = nueva })
 
 const addToCart = (id) => {
   cart.value.push(id)
@@ -253,11 +150,11 @@ const freeTable = () => {
             <Utensils :size="15" />
             Administrar menú
           </RouterLink>
-          <button type="button" @click="openAuth()"
+          <RouterLink :to="sesion ? '/productos' : '/login'"
             class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
             <UserRound :size="15" />
-            {{ authUser ? authUser.name : 'Ingresar' }}
-          </button>
+            {{ sesion ? sesion.user.email : 'Ingresar' }}
+          </RouterLink>
         </div>
       </div>
     </header>
@@ -512,67 +409,5 @@ const freeTable = () => {
       </div>
     </div>
 
-    <Login v-if="authOpen && authMode === 'login'" :error="authError" @submit="loginUser"
-      @register="openAuth('register')" @close="authOpen = false" />
-    <Registro v-if="authOpen && authMode === 'register'" :error="authError" @submit="registerUser"
-      @login="openAuth('login')" @close="authOpen = false" />
-
-    <div v-if="authOpen && (authMode === 'account' || authMode === 'password')"
-      class="fixed inset-0 z-[60] flex items-end justify-center bg-[#20160f]/50 p-3 sm:items-center sm:p-5"
-      @click.self="authOpen = false">
-      <section class="max-h-[92vh] w-full max-w-md overflow-auto rounded-3xl bg-[#fffaf2] p-5 shadow-2xl sm:p-7"
-        aria-labelledby="auth-title">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#a18262]">Cuenta TrackMenú</p>
-            <h2 id="auth-title" class="mt-1 font-serif text-2xl font-bold">
-              {{ authMode === 'register' ? 'Crear cuenta' : authMode === 'password' ? 'Cambiar contraseña' : authUser ?
-                'Tu cuenta' : 'Bienvenido' }}
-            </h2>
-          </div>
-          <button type="button" @click="authOpen = false" aria-label="Cerrar"
-            class="rounded-full p-2 text-[#806f5d] hover:bg-[#f0e5d5]">
-            <X :size="18" />
-          </button>
-        </div>
-
-        <div v-if="authMode === 'account' && authUser" class="mt-6">
-          <p class="font-semibold">{{ authUser.name }}</p>
-          <p class="mt-1 text-sm text-[#806f5d]">{{ authUser.email }}</p>
-          <p v-if="authNotice" role="status" class="mt-4 rounded-xl bg-[#e5f0df] px-3 py-2 text-sm text-[#52704b]">{{
-            authNotice }}</p>
-          <button type="button" @click="authMode = 'password'; authError = ''; authNotice = ''"
-            class="mt-6 flex w-full items-center justify-center gap-2 rounded-full border border-[#d8c8b4] px-4 py-3 text-sm font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
-            Cambiar contraseña
-          </button>
-          <button type="button" @click="logoutUser"
-            class="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#20160f] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#432d1d]">
-            <LogIn :size="16" class="rotate-180" /> Cerrar sesión
-          </button>
-        </div>
-
-        <form v-else-if="authMode === 'password'" class="mt-6 space-y-4" @submit.prevent="changePassword">
-          <label class="block text-xs font-bold text-[#806f5d]">
-            Contraseña actual
-            <input v-model="authForm.currentPassword" type="password" autocomplete="current-password" required
-              class="mt-2 w-full rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]" />
-          </label>
-          <label class="block text-xs font-bold text-[#806f5d]">
-            Nueva contraseña
-            <input v-model="authForm.newPassword" type="password" autocomplete="new-password" minlength="8" required
-              class="mt-2 w-full rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]" />
-          </label>
-          <p v-if="authError" role="alert" class="text-sm text-[#b83d14]">{{ authError }}</p>
-          <button type="submit"
-            class="w-full rounded-full bg-[#d65d2a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#b94b1e]">Actualizar
-            contraseña</button>
-          <button type="button" @click="authMode = 'account'; authError = ''"
-            class="w-full py-2 text-sm font-semibold text-[#806f5d] hover:text-[#20160f]">Volver a mi cuenta</button>
-        </form>
-
-        <p class="mt-3 text-center text-[11px] leading-relaxed text-[#9b8874]">Cuenta de demostración guardada en este
-          navegador.</p>
-      </section>
-    </div>
   </main>
 </template>

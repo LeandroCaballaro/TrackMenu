@@ -152,3 +152,30 @@ comodidad.
 
 Queda pendiente: los mensajes de error que vienen de Postgres se muestran tal
 cual, en inglés (por ejemplo `new row violates row-level security policy`).
+
+
+## 9. Qué cubre el testing adversarial
+
+Se probó la API con datos basura y la web tocando todos los botones. Lo que
+falló quedó arreglado y con test:
+
+- Un `id` que no es UUID devolvía `500` de Postgres; ahora es `404`.
+- `limite` negativo o una `pagina` más allá del final devolvían `500`; ahora se
+  acotan y una página vacía es una respuesta válida.
+- Un objeto o un array en `nombre` se guardaban como `"[object Object]"` o
+  `"a,b"`, y `precio: true` entraba como `1`. Ahora sólo se aceptan texto o
+  número.
+- Un precio o un stock más grandes que su columna devolvían `500`; ahora `400`.
+- Buscar `%` o `_` devolvía todo, porque son comodines de LIKE: ahora se
+  escapan.
+- Una ruta inexistente mostraba una página en blanco; ahora hay un 404.
+- Modificar o eliminar un producto que ya no existe avisaba "correctamente"
+  sin haber tocado nada; ahora se comprueban las filas afectadas.
+- Si la sesión vencía con el listado abierto, la tabla quedaba vacía sin aviso;
+  ahora vuelve al login.
+- `/inicio` tenía su propio registro y login guardados en `localStorage`, en
+  paralelo a Supabase y sin relación con las cuentas reales. Se eliminó: el
+  botón lleva al login de verdad y muestra la sesión de Supabase.
+
+Pendiente, no es un error: `/inicio` sigue siendo una demo con productos y
+mesas escritos a mano; no lee el menú real de la base.

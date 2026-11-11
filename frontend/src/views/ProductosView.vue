@@ -44,9 +44,20 @@ async function obtenerOrganizacionId() {
 const formatearPrecio = (valor) =>
   `$ ${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
-async function cargarProductos(limpiarMensaje = true) {
+async function cargarProductos(limpiarMensaje = true, limpiarError = true) {
+  // El guard del router sólo corre al navegar: si la sesión vence con la
+  // pantalla abierta, sin esto el listado quedaba vacío y sin aviso.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session) {
+    router.replace('/login')
+    return
+  }
+
   cargando.value = true
-  errorMensaje.value = ''
+  if (limpiarError) errorMensaje.value = ''
   if (limpiarMensaje) mensaje.value = ''
 
   const { data, error } = await supabase
@@ -161,10 +172,18 @@ async function guardarProducto() {
     let error
 
     if (productoEditandoId.value) {
-      ;({ error } = await supabase
+      // .select() devuelve las filas tocadas: sin él, actualizar un producto
+      // que ya no existe no da error y avisaba 'actualizado correctamente'.
+      let filas
+      ;({ data: filas, error } = await supabase
         .from('productos')
         .update(datosProducto)
-        .eq('id', productoEditandoId.value))
+        .eq('id', productoEditandoId.value)
+        .select())
+
+      if (!error && filas.length === 0) {
+        error = new Error('El producto ya no existe o no tenés permiso para modificarlo.')
+      }
     } else {
       ;({ error } = await supabase
         .from('productos')
@@ -190,6 +209,8 @@ async function guardarProducto() {
     await cargarProductos(false)
   } catch (error) {
     errorMensaje.value = error.message
+    // el listado puede haber quedado viejo (por ejemplo, el producto ya no está)
+    await cargarProductos(false, false)
   } finally {
     cargando.value = false
   }
@@ -218,10 +239,19 @@ async function eliminarProducto(producto) {
   errorMensaje.value = ''
   mensaje.value = ''
 
-  const { error } = await supabase.from('productos').delete().eq('id', producto.id)
+  // Sin .select() un borrado que no toca ninguna fila (producto ya eliminado,
+  // o rol sin permiso) no da error y avisaba 'eliminado correctamente'.
+  const { data: filas, error } = await supabase
+    .from('productos')
+    .delete()
+    .eq('id', producto.id)
+    .select()
 
-  if (error) {
-    errorMensaje.value = error.message
+  if (error || filas.length === 0) {
+    errorMensaje.value = error
+      ? error.message
+      : 'El producto ya no existe o no tenés permiso para eliminarlo.'
+    await cargarProductos(false, false)
     cargando.value = false
     return
   }

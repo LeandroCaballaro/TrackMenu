@@ -3,15 +3,26 @@
 // RLS filtra por organización y rol además de las validaciones de acá.
 
 const CAMPOS_ORDEN = ['nombre', 'precio', 'stock', 'creado_en'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Topes de las columnas: numeric(12,2) e integer. Pasarse hacía fallar el
+// INSERT con un 500 de Postgres en vez de un 400.
+const PRECIO_MAX = 9999999999.99;
+const STOCK_MAX = 2147483647;
+
+// Sólo texto o número: un objeto o un array se convertían en "[object Object]"
+// o "a,b" y se guardaban igual.
+const esTexto = (v) => typeof v === 'string' || typeof v === 'number';
 
 // Exportada para poder testearla sola.
 export const validarProducto = (body, { parcial = false } = {}) => {
   const errores = {};
   const datos = {};
-  const presente = (campo) => body[campo] !== undefined && body[campo] !== null && body[campo] !== '';
+  const campos = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
+  const presente = (campo) => campos[campo] !== undefined && campos[campo] !== null && campos[campo] !== '';
 
   if (presente('nombre')) {
-    const nombre = String(body.nombre).trim();
+    const nombre = esTexto(campos.nombre) ? String(campos.nombre).trim() : '';
     if (nombre.length < 2 || nombre.length > 80) errores.nombre = 'El nombre debe tener entre 2 y 80 caracteres';
     else datos.nombre = nombre;
   } else if (!parcial) {
@@ -19,38 +30,58 @@ export const validarProducto = (body, { parcial = false } = {}) => {
   }
 
   if (presente('precio')) {
-    const precio = Number(body.precio);
-    if (!Number.isFinite(precio) || precio < 0) errores.precio = 'El precio debe ser un número mayor o igual a 0';
-    else datos.precio = precio;
+    const precio = esTexto(campos.precio) ? Number(campos.precio) : NaN;
+    if (!Number.isFinite(precio) || precio < 0 || precio > PRECIO_MAX) {
+      errores.precio = `El precio debe ser un número entre 0 y ${PRECIO_MAX}`;
+    } else {
+      datos.precio = precio;
+    }
   } else if (!parcial) {
     errores.precio = 'El precio es obligatorio';
   }
 
   if (presente('stock')) {
-    const stock = Number(body.stock);
-    if (!Number.isInteger(stock) || stock < 0) errores.stock = 'El stock debe ser un número entero mayor o igual a 0';
-    else datos.stock = stock;
+    const stock = esTexto(campos.stock) ? Number(campos.stock) : NaN;
+    if (!Number.isInteger(stock) || stock < 0 || stock > STOCK_MAX) {
+      errores.stock = `El stock debe ser un número entero entre 0 y ${STOCK_MAX}`;
+    } else {
+      datos.stock = stock;
+    }
   } else if (!parcial) {
     datos.stock = 0;
   }
 
-  if (body.descripcion !== undefined) {
-    const descripcion = String(body.descripcion ?? '').trim();
-    if (descripcion.length > 500) errores.descripcion = 'La descripción no puede superar los 500 caracteres';
-    else datos.descripcion = descripcion;
+  if (campos.descripcion !== undefined && campos.descripcion !== null) {
+    if (!esTexto(campos.descripcion)) {
+      errores.descripcion = 'La descripción debe ser texto';
+    } else {
+      const descripcion = String(campos.descripcion).trim();
+      if (descripcion.length > 500) errores.descripcion = 'La descripción no puede superar los 500 caracteres';
+      else datos.descripcion = descripcion;
+    }
   }
 
-  if (body.activo !== undefined) {
-    if (typeof body.activo !== 'boolean') errores.activo = 'El campo activo debe ser true o false';
-    else datos.activo = body.activo;
+  if (campos.activo !== undefined) {
+    if (typeof campos.activo !== 'boolean') errores.activo = 'El campo activo debe ser true o false';
+    else datos.activo = campos.activo;
   }
 
   if (presente('imagen_url')) {
-    if (!/^https?:\/\/\S+$/i.test(String(body.imagen_url))) errores.imagen_url = 'La imagen debe ser una URL http(s) válida';
-    else datos.imagen_url = String(body.imagen_url);
+    if (typeof campos.imagen_url !== 'string' || !/^https?:\/\/\S+$/i.test(campos.imagen_url)) {
+      errores.imagen_url = 'La imagen debe ser una URL http(s) válida';
+    } else {
+      datos.imagen_url = campos.imagen_url;
+    }
   }
 
   return { valido: Object.keys(errores).length === 0, errores, datos };
+};
+
+// Un id que no es UUID hacía estallar la consulta con un 500 de Postgres.
+const idInvalido = (req, res) => {
+  if (UUID.test(req.params.id)) return false;
+  res.status(404).json({ success: false, message: 'Producto no encontrado' });
+  return true;
 };
 
 const errorValidacion = (res, errores) =>
@@ -60,8 +91,8 @@ const errorValidacion = (res, errores) =>
 export const listarProductos = async (req, res, next) => {
   try {
     const { q, activo, orden = 'creado_en', dir = 'desc' } = req.query;
-    const limite = Math.min(Number(req.query.limite) || 20, 100);
-    const pagina = Math.max(Number(req.query.pagina) || 1, 1);
+    const limite = Math.min(Math.max(Math.trunc(Number(req.query.limite)) || 20, 1), 100);
+    const pagina = Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1);
 
     if (!CAMPOS_ORDEN.includes(orden)) {
       return res.status(400).json({ success: false, message: `orden debe ser uno de: ${CAMPOS_ORDEN.join(', ')}` });
@@ -72,7 +103,8 @@ export const listarProductos = async (req, res, next) => {
       .select('*', { count: 'exact' })
       .eq('organizacion_id', req.auth.organizacionId);
 
-    if (q) query = query.ilike('nombre', `%${q}%`);
+    // % y _ son comodines de LIKE: sin escapar, buscar "%" devolvía todo.
+    if (q) query = query.ilike('nombre', `%${String(q).replace(/[\\%_]/g, '\\$&')}%`);
     if (activo === 'true' || activo === 'false') query = query.eq('activo', activo === 'true');
 
     const desde = (pagina - 1) * limite;
@@ -80,6 +112,10 @@ export const listarProductos = async (req, res, next) => {
       .order(orden, { ascending: dir !== 'desc' })
       .range(desde, desde + limite - 1);
 
+    // Pedir una página más allá del final no es un error: es una página vacía.
+    if (error && error.code === 'PGRST103') {
+      return res.json({ success: true, total: 0, pagina, limite, data: [] });
+    }
     if (error) throw error;
     res.json({ success: true, total: count, pagina, limite, data });
   } catch (err) {
@@ -89,6 +125,8 @@ export const listarProductos = async (req, res, next) => {
 
 export const obtenerProducto = async (req, res, next) => {
   try {
+    if (idInvalido(req, res)) return;
+
     const { data, error } = await req.auth.db
       .from('productos')
       .select('*')
@@ -124,6 +162,8 @@ export const crearProducto = async (req, res, next) => {
 
 export const actualizarProducto = async (req, res, next) => {
   try {
+    if (idInvalido(req, res)) return;
+
     const { valido, errores, datos } = validarProducto(req.body, { parcial: true });
     if (!valido) return errorValidacion(res, errores);
     if (Object.keys(datos).length === 0) {
@@ -148,6 +188,8 @@ export const actualizarProducto = async (req, res, next) => {
 
 export const eliminarProducto = async (req, res, next) => {
   try {
+    if (idInvalido(req, res)) return;
+
     const { data, error } = await req.auth.db
       .from('productos')
       .delete()
