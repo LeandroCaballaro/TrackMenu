@@ -37,7 +37,7 @@ const api = async (metodo, ruta, { token, body } = {}) => {
 // cuentas nuevas.
 const registrar = async (etiqueta) => {
   const sufijo = etiqueta.toUpperCase();
-  const email = process.env[`EMAIL_${sufijo}`] || `e2e_${etiqueta}_${sello}@trackmenu.test`;
+  const email = process.env[`EMAIL_${sufijo}`] || `e2e_${etiqueta}_${sello}@example.org`;
   const password = process.env[`PASSWORD_${sufijo}`] || 'Prueba12345!';
 
   if (process.env[`EMAIL_${sufijo}`]) {

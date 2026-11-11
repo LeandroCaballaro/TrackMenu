@@ -23,6 +23,24 @@ const cargando = ref(false)
 const mensaje = ref('')
 const errorMensaje = ref('')
 
+// Desde la migración 006 los productos y sus imágenes pertenecen a la
+// organización, no al usuario: RLS rechaza el alta sin organizacion_id.
+const organizacionId = ref('')
+const rol = ref('')
+const puedeEditar = () => ['admin', 'empleado'].includes(rol.value)
+
+async function obtenerOrganizacionId() {
+  if (organizacionId.value) return organizacionId.value
+
+  // mi_organizacion() es la misma función que usan las políticas RLS.
+  const { data, error } = await supabase.rpc('mi_organizacion')
+
+  if (error || !data) throw new Error('Tu usuario no pertenece a ninguna organización.')
+
+  organizacionId.value = data
+  return organizacionId.value
+}
+
 const formatearPrecio = (valor) =>
   `$ ${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
 
@@ -87,7 +105,7 @@ async function subirImagen() {
   }
 
   const extension = archivoImagen.value.name.split('.').pop().toLowerCase()
-  const ruta = `${user.id}/${crypto.randomUUID()}.${extension}`
+  const ruta = `${await obtenerOrganizacionId()}/${crypto.randomUUID()}.${extension}`
 
   const { error: errorSubida } = await supabase.storage
     .from('productos')
@@ -148,7 +166,9 @@ async function guardarProducto() {
         .update(datosProducto)
         .eq('id', productoEditandoId.value))
     } else {
-      ;({ error } = await supabase.from('productos').insert(datosProducto))
+      ;({ error } = await supabase
+        .from('productos')
+        .insert({ ...datosProducto, organizacion_id: await obtenerOrganizacionId() }))
     }
 
     if (error) {
@@ -249,7 +269,11 @@ async function cerrarSesion() {
   router.push('/login')
 }
 
-onMounted(cargarProductos)
+onMounted(async () => {
+  const { data } = await supabase.rpc('mi_rol')
+  rol.value = data ?? ''
+  await cargarProductos()
+})
 </script>
 
 <template>
@@ -270,8 +294,8 @@ onMounted(cargarProductos)
       </div>
     </header>
 
-    <div class="mx-auto grid w-full max-w-[1400px] gap-5 px-2 py-4 sm:gap-8 sm:px-5 sm:py-8 md:px-8 lg:grid-cols-[380px_minmax(0,1fr)]">
-      <section class="h-fit rounded-3xl border border-[#e4d9c8] bg-[#fffaf2] p-5 shadow-sm sm:p-6">
+    <div class="mx-auto grid w-full max-w-[1400px] gap-5 px-2 py-4 sm:gap-8 sm:px-5 sm:py-8 md:px-8" :class="puedeEditar() ? 'lg:grid-cols-[380px_minmax(0,1fr)]' : 'lg:grid-cols-1'">
+      <section v-if="puedeEditar()" class="h-fit rounded-3xl border border-[#e4d9c8] bg-[#fffaf2] p-5 shadow-sm sm:p-6">
         <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a18262]">Administración</p>
         <h1 class="mt-1 font-serif text-2xl font-bold sm:text-3xl">
           {{ productoEditandoId ? 'Editar producto' : 'Nuevo producto' }}
@@ -398,11 +422,11 @@ onMounted(cargarProductos)
                 </td>
                 <td class="rounded-r-2xl px-3 py-3">
                   <div class="flex justify-end gap-2">
-                    <button type="button" @click="editarProducto(producto)"
+                    <button v-if="puedeEditar()" type="button" @click="editarProducto(producto)"
                       class="flex items-center gap-1.5 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
                       <Pencil :size="14" /> Editar
                     </button>
-                    <button type="button" @click="eliminarProducto(producto)"
+                    <button v-if="rol === 'admin'" type="button" @click="eliminarProducto(producto)"
                       class="flex items-center gap-1.5 rounded-full bg-[#b83d14] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#95300e]">
                       <Trash2 :size="14" /> Eliminar
                     </button>

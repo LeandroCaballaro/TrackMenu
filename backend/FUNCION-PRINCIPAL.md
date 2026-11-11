@@ -126,20 +126,29 @@ que fallen los casos que deben fallar — faltan datos (`400`), formato inválid
 (`400`), orden inexistente (`400`), sin token o token vencido (`401`), producto de
 otra organización (`404` al leer, modificar y eliminar).
 
-Para probar `empleado` / `consulta`, bajar el rol en el SQL Editor y pasar el
-token de ese usuario:
+Cuentas de prueba (`db/seeds/004_seed_usuarios_prueba.sql`, contraseña
+`Prueba12345!` en todas):
 
-```sql
-UPDATE public.miembros SET rol = 'consulta' WHERE usuario_id = '<uuid>';
-```
+| Cuenta | Rol | Organización |
+|---|---|---|
+| `e2e.admin@example.org` | admin | Negocio A de prueba |
+| `e2e.empleado@example.org` | empleado | Negocio A de prueba |
+| `e2e.consulta@example.org` | consulta | Negocio A de prueba |
+| `e2e.otraorg@example.org` | admin | Negocio B de prueba |
 
 ```bash
-TOKEN_CONSULTA=<access_token> npm run test:e2e
+EMAIL_A=e2e.admin@example.org PASSWORD_A='Prueba12345!' \
+EMAIL_B=e2e.otraorg@example.org PASSWORD_B='Prueba12345!' npm run test:e2e
 ```
 
-## 8. Pendiente para el frontend
+## 8. Estado del frontend
 
-El backend ya expone todo el recorrido. En la interfaz falta: el formulario de
-alta/edición apuntando a estos endpoints, el diálogo de confirmación antes de
-eliminar, los mensajes de éxito/error usando `message` y `errors`, y un guard de
-Vue Router que mande a `/login` cuando no hay sesión.
+`ProductosView.vue` ya trabaja contra el modelo nuevo: resuelve la organización
+con la función `mi_organizacion()` (la misma que usan las políticas), guarda
+`organizacion_id` en el alta y sube las imágenes a la carpeta de la
+organización. Según el rol (`mi_rol()`) oculta el formulario y los botones que
+no corresponden — los permisos igual se validan en la base, ocultarlos es sólo
+comodidad.
+
+Queda pendiente: los mensajes de error que vienen de Postgres se muestran tal
+cual, en inglés (por ejemplo `new row violates row-level security policy`).
