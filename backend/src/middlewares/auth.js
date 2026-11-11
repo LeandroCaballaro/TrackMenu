@@ -18,13 +18,27 @@ export const requireAuth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Sesión inválida o expirada' });
     }
 
-    const { data: miembro, error } = await db
+    let { data: miembro, error } = await db
       .from('miembros')
       .select('organizacion_id, rol')
       .eq('usuario_id', userData.user.id)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      const missingTable =
+        error.code === 'PGRST205' ||
+        error.code === '42P01' ||
+        String(error.message || '').includes('schema cache');
+
+      if (missingTable) {
+        miembro = {
+          organizacion_id: userData.user.user_metadata?.organizacion_id || userData.user.id,
+          rol: userData.user.user_metadata?.rol || 'admin',
+        };
+      } else {
+        throw error;
+      }
+    }
     if (!miembro) {
       return res.status(403).json({ success: false, message: 'El usuario no pertenece a ninguna organización' });
     }
@@ -33,6 +47,7 @@ export const requireAuth = async (req, res, next) => {
       db,
       token,
       usuarioId: userData.user.id,
+      usuarioEmail: userData.user.email,
       organizacionId: miembro.organizacion_id,
       rol: miembro.rol,
     };

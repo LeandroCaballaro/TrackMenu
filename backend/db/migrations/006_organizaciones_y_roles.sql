@@ -1,6 +1,6 @@
 -- Migration: 006_organizaciones_y_roles.sql
 -- Multi-tenencia: cada producto pertenece a una organización, cada usuario es
--- miembro de una organización con un rol (admin | empleado | consulta).
+-- miembro de una organización con un rol (admin | empleado).
 
 CREATE TABLE IF NOT EXISTS public.organizaciones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public.organizaciones (
 CREATE TABLE IF NOT EXISTS public.miembros (
   usuario_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   organizacion_id UUID NOT NULL REFERENCES public.organizaciones(id) ON DELETE CASCADE,
-  rol TEXT NOT NULL DEFAULT 'empleado' CHECK (rol IN ('admin', 'empleado', 'consulta')),
+  rol TEXT NOT NULL DEFAULT 'empleado' CHECK (rol IN ('admin', 'empleado')),
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

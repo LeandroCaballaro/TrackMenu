@@ -17,10 +17,13 @@ TrackMenu/
 │   ├── .env               # Variables de entorno
 │   └── package.json
 │
-├── frontend/              # Aplicación cliente (Vue 3 + Vite + TailwindCSS)
+├── frontend/              # Aplicación cliente (Vue 3 + Vite + Tailwind CSS v4)
 │   ├── src/
-│   │   ├── view/          # Vistas (Inicio, Login, Registro)
-│   │   ├── assets/        # Estilos y recursos estáticos
+│   │   ├── views/         # Vistas (Bienvenida, Inicio/Carta, Login, Productos, Dashboard)
+│   │   ├── components/    # Header de navegación con roles y Combobox
+│   │   ├── services/      # Cliente API y fallback local
+│   │   ├── router/        # Rutas y guardias por rol (admin / empleado)
+│   │   ├── assets/        # Estilos y logo
 │   │   ├── App.vue        # Componente raíz
 │   │   └── main.js        # Punto de entrada de Vue
 │   ├── index.html
@@ -91,5 +94,7 @@ npm install
 - `POST /api/tables/:number/ocupar` - Asignar orden a mesa
 - `GET  /api/orders` - Lista de pedidos en cocina
 - `POST /api/orders` - Crear nuevo pedido
-- `POST /api/auth/login` - Iniciar sesión
-- `POST /api/auth/register` - Registro de usuario
+- `POST /api/auth/login` - Iniciar sesión (`admin` / `empleado`)
+- `GET  /api/auth/me` - Sesión, organización y rol actual
+- `GET/POST/PUT/DELETE /api/productos` - ABM multi-tenant de productos y aviso de falta de stock
+- `GET/POST /api/admin/...` - KPIs, historial de ventas, anulación, movimientos y alta/gestión de usuarios (solo `admin`)

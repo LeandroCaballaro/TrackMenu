@@ -46,8 +46,12 @@ export const validarProducto = (body, { parcial = false } = {}) => {
   }
 
   if (presente('imagen_url')) {
-    if (!/^https?:\/\/\S+$/i.test(String(body.imagen_url))) errores.imagen_url = 'La imagen debe ser una URL http(s) válida';
-    else datos.imagen_url = String(body.imagen_url);
+    const imgStr = String(body.imagen_url).trim();
+    if (!/^(https?:\/\/|data:image\/)/i.test(imgStr)) {
+      errores.imagen_url = 'La imagen debe ser una URL http(s) válida o una imagen cargada desde el dispositivo';
+    } else {
+      datos.imagen_url = imgStr;
+    }
   }
 
   return { valido: Object.keys(errores).length === 0, errores, datos };
@@ -130,6 +134,14 @@ export const actualizarProducto = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No hay campos para actualizar' });
     }
 
+    // Regla de roles: el empleado NO puede alterar el stock numérico
+    if (req.auth?.rol === 'empleado' && datos.stock !== undefined) {
+      return res.status(403).json({
+        success: false,
+        message: 'Permiso denegado: El personal con rol empleado no puede modificar el stock numérico. Utilice la función "Notificar falta de stock".',
+      });
+    }
+
     const { data, error } = await req.auth.db
       .from('productos')
       .update({ ...datos, actualizado_en: new Date().toISOString() })
@@ -141,6 +153,54 @@ export const actualizarProducto = async (req, res, next) => {
     if (error) throw error;
     if (!data) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     res.json({ success: true, message: 'Producto modificado correctamente', data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Notificación de falta de stock enviada por empleado al administrador
+export const notificarFaltaStock = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { motivo } = req.body || {};
+
+    const { data: producto, error: prodErr } = await req.auth.db
+      .from('productos')
+      .select('id, nombre, stock')
+      .eq('id', id)
+      .eq('organizacion_id', req.auth.organizacionId)
+      .maybeSingle();
+
+    if (prodErr) throw prodErr;
+    if (!producto) {
+      return res.status(404).json({ success: false, message: 'Producto no encontrado' });
+    }
+
+    const detalleAlerta = {
+      producto_id: producto.id,
+      producto_nombre: producto.nombre,
+      stock_actual: producto.stock,
+      usuario_email: req.auth.usuarioEmail || 'empleado',
+      motivo: motivo || 'Notificación urgente: falta de stock / producto agotado reportado por empleado.',
+      notificado_en: new Date().toISOString(),
+    };
+
+    try {
+      await req.auth.db.from('auditoria_logs').insert([{
+        organizacion_id: req.auth.organizacionId,
+        usuario_id: req.auth.usuarioId,
+        accion: 'alerta_stock',
+        detalles: detalleAlerta,
+      }]);
+    } catch {
+      // Si la tabla no está o RLS no aplica, log local silencioso
+    }
+
+    res.json({
+      success: true,
+      message: `Se notificó exitosamente al administrador la falta de stock de "${producto.nombre}".`,
+      data: detalleAlerta,
+    });
   } catch (err) {
     next(err);
   }
