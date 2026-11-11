@@ -41,3 +41,13 @@ test('precio y stock en cero son válidos', () => {
   const r = validarProducto({ nombre: 'Agua', precio: 0, stock: 0 });
   assert.equal(r.valido, true);
 });
+
+test('acepta imágenes http(s) y data URLs cargadas desde dispositivo', () => {
+  const rHttp = validarProducto({ nombre: 'Pizza', precio: 100, imagen_url: 'https://images.unsplash.com/photo-1' });
+  assert.equal(rHttp.valido, true);
+  assert.equal(rHttp.datos.imagen_url, 'https://images.unsplash.com/photo-1');
+
+  const rData = validarProducto({ nombre: 'Burger', precio: 120, imagen_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==' });
+  assert.equal(rData.valido, true);
+  assert.equal(rData.datos.imagen_url, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
+});
