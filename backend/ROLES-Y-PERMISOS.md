@@ -101,18 +101,25 @@ lo impide, y las dos funciones de alta fallan si el usuario ya es miembro.
 - Dar de baja a un usuario tiene efecto en la petición siguiente: su token sigue
   siendo válido, pero ya no pertenece a ninguna organización y recibe `403`.
 
-## 7. Dos decisiones pendientes de la fusión
+## 7. Cómo se da de alta un usuario
 
-Al fusionar las dos ramas quedaron dos contratos distintos. Están marcados acá
-porque los definen tests, no el código:
+Hay tres caminos, y conviven a propósito:
 
-1. **Alta propia (`POST /api/auth/register`).** La otra rama la había quitado a
-   propósito: sólo un admin crea usuarios (`tests/admin.test.js` lo afirma). En
-   la fusión se mantuvo, porque sin ella un negocio nuevo no tiene cómo abrir su
-   cuenta —no existe todavía un admin que lo cree— y la consigna pide probar el
-   registro. **Ese test queda fallando hasta que se decida.**
-2. **El rol `consulta`.** La base lo acepta desde la migración `006` y lo usan
-   `/api/miembros` y las invitaciones, pero el módulo de administración de la
-   otra rama sólo contempla `admin` y `empleado`, y su test lo afirma. Mientras
-   tanto, un usuario de sólo lectura se asigna por invitación o por
-   `PATCH /api/miembros/:id`, no por `POST /api/admin/usuarios/rol`.
+| Camino | Para qué | Quién lo usa |
+|---|---|---|
+| `POST /api/auth/register` | Abrir la cuenta de un negocio nuevo | Cualquiera. Sin código de invitación funda su propia organización y queda como admin; nunca entra a una existente |
+| `POST /api/admin/usuarios` | Sumar a alguien del equipo creándole la cuenta | El admin de la organización |
+| `POST /api/invitaciones` + `POST /api/auth/aceptar-invitacion` | Sumar a alguien que se registra solo | El admin invita; la persona canjea el código |
+
+El alta propia tiene que existir porque un cliente nuevo no tiene todavía
+ningún admin que lo cree. Las tres vías terminan en la misma tabla `miembros` y
+pasan por funciones de la base que comprueban quién llama: no hay INSERT
+directo sobre `miembros` desde el cliente.
+
+## 8. Decisión pendiente: el rol `consulta`
+
+La base lo acepta desde la migración `006` y lo usan `/api/miembros` y las
+invitaciones, pero el módulo de administración sólo contempla `admin` y
+`empleado`, y su test lo afirma. Mientras no se unifique, un usuario de sólo
+lectura se asigna por invitación o por `PATCH /api/miembros/:id`, no por
+`POST /api/admin/usuarios/rol`.
