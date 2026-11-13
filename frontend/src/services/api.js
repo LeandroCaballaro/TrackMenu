@@ -3,32 +3,20 @@ import { reactive, computed } from 'vue'
 const STORAGE_SESSION_KEY = 'trackmenu_saas_session'
 const STORAGE_DATA_KEY = 'trackmenu_saas_db'
 
+// Cuentas que entraban sin pasar por el backend. Se quitaron, y también se
+// borran de los navegadores que las tengan guardadas de antes.
+const CUENTAS_DEMO = ['admin@demo.com', 'empleado@demo.com']
+
 // Semilla inicial con productos para el negocio por defecto
 const initialMockDatabase = {
   organizaciones: [
     { id: 'org_demo_1', nombre: 'Parrilla Central' },
     { id: 'org_demo_2', nombre: 'Bar & Café Palermo' },
   ],
-  usuarios: [
-    {
-      id: 'usr_admin_1',
-      email: 'admin@demo.com',
-      password: 'admin12345',
-      nombre: 'Carlos Admin',
-      organizacion_id: 'org_demo_1',
-      rol: 'admin',
-      localOnly: true,
-    },
-    {
-      id: 'usr_empleado_1',
-      email: 'empleado@demo.com',
-      password: 'empleado12345',
-      nombre: 'Lucía Empleada',
-      organizacion_id: 'org_demo_1',
-      rol: 'empleado',
-      localOnly: true,
-    },
-  ],
+  // Sin cuentas de demostración: antes había dos (@demo.com) que entraban sin
+  // tocar el backend, así que todo lo que se cargaba con ellas quedaba en este
+  // navegador y no llegaba nunca a la base.
+  usuarios: [],
   productos: [
     {
       id: 'prod_1',
@@ -221,16 +209,10 @@ const getLocalDb = () => {
         db.usuarios = filtrados
         updated = true
       }
-      for (const seedUser of initialMockDatabase.usuarios) {
-        const existing = db.usuarios.find((u) => u.email?.toLowerCase() === seedUser.email)
-        if (!existing) {
-          db.usuarios.push({ ...seedUser })
-          updated = true
-        } else if (!existing.password) {
-          existing.password = seedUser.password
-          existing.localOnly = true
-          updated = true
-        }
+      const sinDemo = db.usuarios.filter((u) => !CUENTAS_DEMO.includes(u.email?.toLowerCase()))
+      if (sinDemo.length !== db.usuarios.length) {
+        db.usuarios = sinDemo
+        updated = true
       }
       if (updated) saveLocalDb(db)
     }
@@ -249,7 +231,7 @@ const saveLocalDb = (db) => {
 }
 
 // Estado reactivo global de la sesión (sin autologin si no existe sesión guardada)
-const savedSession = (() => {
+let savedSession = (() => {
   try {
     const item = localStorage.getItem(STORAGE_SESSION_KEY)
     const parsed = item ? JSON.parse(item) : null
@@ -262,6 +244,16 @@ const savedSession = (() => {
     return null
   }
 })()
+
+// Si quedó pegada la sesión de una cuenta de demostración, se descarta.
+if (savedSession && CUENTAS_DEMO.includes(savedSession.user?.email?.toLowerCase())) {
+  try {
+    localStorage.removeItem(STORAGE_SESSION_KEY)
+  } catch {
+    // navegador sin almacenamiento: alcanza con no usarla
+  }
+  savedSession = null
+}
 
 export const authState = reactive({
   token: savedSession?.token || null,
@@ -356,21 +348,6 @@ export const authService = {
     const cleanEmail = email.trim().toLowerCase()
     const db = getLocalDb()
     const localUser = db.usuarios.find((u) => u.email?.toLowerCase() === cleanEmail)
-
-    // Si es una cuenta local / de roles de prueba, validamos su contraseña localmente
-    if (localUser && localUser.localOnly) {
-      if (localUser.password && localUser.password !== password) {
-        return { success: false, message: 'Correo o contraseña incorrectos.' }
-      }
-      const org = db.organizaciones.find((o) => o.id === localUser.organizacion_id) || db.organizaciones[0]
-      authState.token = 'demo_token_' + localUser.id
-      authState.user = { id: localUser.id, email: localUser.email, nombre: localUser.nombre }
-      authState.organizacion = org
-      authState.rol = localUser.rol || 'admin'
-      authState.backendConnected = false
-      persistSession()
-      return { success: true, message: 'Inicio de sesión exitoso' }
-    }
 
     // Intento con backend real (Supabase)
     try {

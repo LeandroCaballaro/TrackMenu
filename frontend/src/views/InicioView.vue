@@ -118,7 +118,7 @@ const occupied = ref([4, 7])
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
-// Con una cuenta de demostración lo que se carga no llega a la base: avisarlo.
+// Sin conexión con el backend la carta no sale de la base: avisarlo.
 const modoLocal = computed(() => Boolean(authState.user) && !authState.backendConnected)
 
 const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
@@ -233,7 +233,7 @@ const freeTable = () => {
   <main class="relative z-0 min-h-dvh overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
     <p v-if="modoLocal" role="status"
       class="relative z-20 w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
-      Modo demostración: estás usando una cuenta local, así que la carta no se lee de la base de datos.
+      Sin conexión con el servidor: la carta no se está leyendo de la base de datos.
     </p>
     <p v-else-if="errorCarta" role="alert"
       class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
