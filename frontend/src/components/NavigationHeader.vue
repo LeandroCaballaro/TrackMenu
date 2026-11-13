@@ -15,6 +15,9 @@ const router = useRouter()
 const esAdmin = computed(() => authState.rol === 'admin')
 const esEmpleado = computed(() => authState.rol === 'empleado')
 const estaAutenticado = computed(() => Boolean(authState.user))
+// Con las cuentas de demostración (@demo.com) o sin backend, lo que se carga
+// queda sólo en este navegador. Hay que verlo, no sólo saberlo.
+const modoLocal = computed(() => estaAutenticado.value && !authState.backendConnected)
 
 // Identificar qué vista está activa actualmente
 const seccionActiva = computed(() => {
@@ -239,6 +242,11 @@ function cerrarSesion() {
 
     </div>
   </header>
+
+  <p v-if="modoLocal" role="status"
+    class="w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
+    Modo demostración: estás usando una cuenta local, así que lo que cargues queda sólo en este navegador y no llega a la base de datos.
+  </p>
 </template>
 
 <style scoped>

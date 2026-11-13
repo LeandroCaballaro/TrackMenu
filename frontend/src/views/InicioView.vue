@@ -118,6 +118,9 @@ const occupied = ref([4, 7])
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
+// Con una cuenta de demostración lo que se carga no llega a la base: avisarlo.
+const modoLocal = computed(() => Boolean(authState.user) && !authState.backendConnected)
+
 const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
 
 const visibleProducts = computed(() => {
@@ -228,6 +231,14 @@ const freeTable = () => {
 
 <template>
   <main class="relative z-0 min-h-dvh overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+    <p v-if="modoLocal" role="status"
+      class="relative z-20 w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
+      Modo demostración: estás usando una cuenta local, así que la carta no se lee de la base de datos.
+    </p>
+    <p v-else-if="errorCarta" role="alert"
+      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
+      {{ errorCarta }}
+    </p>
     <!-- Ambient glow background decoration -->
     <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-40">
       <div class="absolute -top-[20%] left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/15 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
