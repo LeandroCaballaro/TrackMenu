@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
-import { authState } from '@/services/api'
+import { authState, productosService } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus, ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft,
 } from 'lucide-vue-next'
@@ -17,7 +17,7 @@ const paymentOptions = [
 
 const burgerImage = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-qw3nfbnetm1rXMnXgRGCZbDkTOypHG.png'
 
-const products = [
+const productosDeEjemplo = [
   {
     id: 1,
     name: 'Burger clásica',
@@ -59,6 +59,41 @@ const products = [
     image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=500&q=80',
   },
 ]
+// La carta sale de la base: estos productos de ejemplo quedan sólo para la
+// portada, cuando todavía no hay sesión con la que leer el menú real.
+const products = ref(productosDeEjemplo)
+const cargandoCarta = ref(false)
+const errorCarta = ref("")
+
+const cargarCarta = async () => {
+  if (!authState.token) return
+  cargandoCarta.value = true
+  errorCarta.value = ""
+
+  const res = await productosService.listar({ activo: true, orden: "nombre", dir: "asc", limite: 100 })
+
+  if (!res.success) {
+    errorCarta.value = res.message || "No se pudo cargar la carta."
+  } else {
+    products.value = res.data.map((p) => ({
+      id: p.id,
+      name: p.nombre,
+      description: p.descripcion || "",
+      price: Number(p.precio),
+      category: "Carta",
+      image: p.imagen_url || burgerImage,
+    }))
+    cart.value = []
+    // sin productos activos la carta queda vacía, pero la pantalla no se rompe
+    category.value = categorias.value[0] ?? ""
+  }
+
+  cargandoCarta.value = false
+}
+
+onMounted(cargarCarta)
+watch(() => authState.token, cargarCarta)
+
 
 const formatPrice = (price) => `$ ${price.toLocaleString('es-AR')}`
 
@@ -75,7 +110,7 @@ watch(() => route.query.vista, (nuevaVista) => {
   }
 })
 const category = ref('Plato Principal')
-const cart = ref([1])
+const cart = ref([])
 const selected = ref(null)
 const orderSent = ref(false)
 const mobileCartOpen = ref(false)
@@ -83,18 +118,20 @@ const occupied = ref([4, 7])
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
+const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
+
 const visibleProducts = computed(() => {
-  return products.filter((product) => product.category === category.value)
+  return products.value.filter((product) => product.category === category.value)
 })
 
 const cartProducts = computed(() => {
-  return cart.value.map((id) => products.find((product) => product.id === id)).filter(Boolean)
+  return cart.value.map((id) => products.value.find((product) => product.id === id)).filter(Boolean)
 })
 
 const cartItems = computed(() => {
   const grouped = new Map()
   for (const id of cart.value) {
-    const product = products.find((p) => p.id === id)
+    const product = products.value.find((p) => p.id === id)
     if (!product) continue
     if (!grouped.has(id)) {
       grouped.set(id, { product, qty: 0, subtotal: 0 })
@@ -213,7 +250,7 @@ const freeTable = () => {
 
         <!-- Categories -->
         <div class="no-scrollbar mb-5 flex items-center gap-2 overflow-x-auto touch-pan-x sm:mb-6 sm:gap-2.5" role="tablist">
-          <button v-for="item in ['Plato Principal', 'Bebidas', 'Postres']" :key="item" type="button"
+          <button v-for="item in categorias" :key="item" type="button"
             @click="selectCategory(item)"
             class="min-h-[40px] whitespace-nowrap rounded-full px-4 sm:px-5 py-2 text-xs font-bold transition duration-150 active:scale-[0.97]"
             :class="category === item ? 'bg-[#e58a4e] text-[#190d05]' : 'bg-[#17120f] border border-white/5 text-stone-400 hover:text-stone-200 hover:bg-[#221a15]'">

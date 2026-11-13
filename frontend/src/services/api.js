@@ -202,6 +202,10 @@ const initialMockDatabase = {
 }
 
 // Carga o inicializa la base de datos simulada
+// Los datos que no llegan al backend quedan sólo en este navegador: decirlo,
+// porque "guardado correctamente" hacía pensar que estaban en la base.
+const avisoLocal = (mensaje) => `${mensaje}, pero sólo en este navegador: no hay conexión con el servidor.`
+
 const getLocalDb = () => {
   try {
     const raw = localStorage.getItem(STORAGE_DATA_KEY)
@@ -578,7 +582,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto creado correctamente y guardado en tu organización.',
+      message: avisoLocal('Producto creado correctamente'),
       data: nuevo,
     }
   },
@@ -647,7 +651,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto modificado correctamente.',
+      message: avisoLocal('Producto modificado correctamente'),
       data: actualizado,
     }
   },
@@ -742,7 +746,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto eliminado correctamente de tu catálogo.',
+      message: avisoLocal('Producto eliminado correctamente'),
     }
   },
 }
@@ -943,7 +947,7 @@ export const adminService = {
 
     return {
       success: true,
-      message: 'Ticket anulado correctamente y stock restituido al inventario.',
+      message: avisoLocal('Ticket anulado y stock restituido'),
     }
   },
 
