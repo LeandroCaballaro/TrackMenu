@@ -15,7 +15,8 @@ backend/db/
 │   ├── 004_enable_rls_and_policies.sql    # Políticas de seguridad RLS
 │   ├── 005_create_productos_abm.sql       # Tabla productos (ABM)
 │   ├── 006_organizaciones_y_roles.sql     # Organizaciones, roles y RLS por organización
-│   └── 007_invitaciones_y_gestion_de_usuarios.sql  # Invitaciones, cambio de rol y cierre de la escalada
+│   ├── 007_superadmin_ventas_auditoria.sql  # Ventas, stock y logs de auditoría
+│   └── 008_invitaciones_y_gestion_de_usuarios.sql  # Invitaciones, cambio de rol y cierre de la escalada
 │
 ├── seeds/
 │   ├── 001_seed_products.sql              # Inserción de productos iniciales
@@ -36,7 +37,7 @@ backend/db/
 
 1. Ingresá a tu proyecto en [Supabase Dashboard](https://supabase.com/dashboard).
 2. Ve a la sección **SQL Editor**.
-3. Ejecutá en orden los archivos de `migrations/` (`001` a `007`).
+3. Ejecutá en orden los archivos de `migrations/` (`001` a `008`).
 4. Ejecutá los archivos de `seeds/` (`001` a `005`) si deseas cargar los datos de prueba.
    Los seeds `004` y `005` crean las cuentas de demostración y su menú, y hay
    que correrlos desde el SQL Editor: escriben en `auth.users`, que la clave

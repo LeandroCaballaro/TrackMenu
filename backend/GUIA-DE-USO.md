@@ -95,7 +95,7 @@ El frontend necesita `VITE_SUPABASE_URL` y `VITE_SUPABASE_PUBLISHABLE_KEY`
 (ver `frontend/.env.example`).
 
 Antes de publicar, aplicar las migraciones de `db/migrations/` en orden (001 a
-007) y después los seeds.
+008) y después los seeds.
 
 > **Nada de esto se versiona.** `.env` está en `.gitignore`; en el repositorio
 > sólo hay `.env.example` con valores de ejemplo. Las claves reales se cargan en

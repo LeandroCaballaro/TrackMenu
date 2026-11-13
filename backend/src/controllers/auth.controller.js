@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured, userClient } from '../config/supabase.js';
 
+
 // Alta de la organización del usuario que se registra: queda como admin.
 // fundar_organizacion() crea la organización y la membresía en un solo paso,
 // con el token del propio usuario, y falla si ya pertenece a alguna.
@@ -40,9 +41,10 @@ export const login = async (req, res, next) => {
     // de servir. Sin organización, el cliente ofrece crearla o usar un código.
     const { data: miembro } = await userClient(data.session.access_token)
       .from('miembros')
-      .select('organizacion_id, rol')
+      .select('organizacion_id, rol, organizaciones(nombre)')
       .eq('usuario_id', data.user.id)
       .maybeSingle();
+
 
     res.json({
       success: true,
@@ -51,6 +53,7 @@ export const login = async (req, res, next) => {
         user: data.user,
         session: data.session,
         organizacion_id: miembro?.organizacion_id ?? null,
+        organizacion_nombre: miembro?.organizaciones?.nombre ?? null,
         rol: miembro?.rol ?? null,
       },
     });
@@ -180,7 +183,27 @@ export const aceptarInvitacion = async (req, res, next) => {
 };
 
 // Protegida con requireAuth: devuelve también organización y rol.
-export const getCurrentUser = async (req, res) => {
-  const { usuarioId, organizacionId, rol } = req.auth;
-  res.json({ success: true, data: { id: usuarioId, organizacion_id: organizacionId, rol } });
+export const getCurrentUser = async (req, res, next) => {
+  try {
+    const { usuarioId, usuarioEmail, organizacionId, rol } = req.auth;
+
+    const { data: org } = await req.auth.db
+      .from('organizaciones')
+      .select('nombre')
+      .eq('id', organizacionId)
+      .maybeSingle();
+
+    res.json({
+      success: true,
+      data: {
+        id: usuarioId,
+        email: usuarioEmail,
+        organizacion_id: organizacionId,
+        organizacion_nombre: org?.nombre ?? null,
+        rol,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 };

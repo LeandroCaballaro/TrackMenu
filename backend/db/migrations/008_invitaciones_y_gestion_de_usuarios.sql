@@ -1,4 +1,4 @@
--- Migration: 007_invitaciones_y_gestion_de_usuarios.sql
+-- Migration: 008_invitaciones_y_gestion_de_usuarios.sql
 --
 -- Arregla una escalada de privilegios y agrega la gestión de usuarios.
 --
@@ -158,3 +158,35 @@ DROP POLICY IF EXISTS "Fundar mi organizacion" ON public.miembros;
 DROP POLICY IF EXISTS "Crear mi organizacion" ON public.organizaciones;
 REVOKE INSERT ON TABLE public.miembros FROM authenticated;
 REVOKE INSERT ON TABLE public.organizaciones FROM authenticated;
+
+-- 6. Alta directa de un miembro por parte del admin.
+-- Lo usa POST /api/admin/usuarios, que crea la cuenta y la suma al equipo.
+-- Como ya no hay INSERT público sobre miembros, pasa por acá: la función
+-- comprueba que quien llama sea admin de esa organización.
+CREATE OR REPLACE FUNCTION public.agregar_miembro(nuevo_usuario UUID, nuevo_rol TEXT)
+RETURNS TABLE (organizacion_id UUID, rol TEXT)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  org UUID := public.mi_organizacion();
+BEGIN
+  IF org IS NULL OR public.mi_rol() <> 'admin' THEN
+    RAISE EXCEPTION 'Sólo un administrador puede sumar usuarios a su organización';
+  END IF;
+
+  IF nuevo_rol NOT IN ('admin', 'empleado', 'consulta') THEN
+    RAISE EXCEPTION 'Rol inválido: %', nuevo_rol;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.miembros WHERE usuario_id = nuevo_usuario) THEN
+    RAISE EXCEPTION 'Ese usuario ya pertenece a una organización';
+  END IF;
+
+  INSERT INTO public.miembros (usuario_id, organizacion_id, rol)
+  VALUES (nuevo_usuario, org, nuevo_rol);
+
+  RETURN QUERY SELECT org, nuevo_rol;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.agregar_miembro(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.agregar_miembro(UUID, TEXT) TO authenticated;

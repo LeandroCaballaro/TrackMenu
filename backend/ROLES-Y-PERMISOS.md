@@ -63,7 +63,7 @@ Las dos puertas de entrada a una organización son funciones de la base
 - `requireRole('admin', ...)` corta por rol antes de llegar al controlador.
 - Cada consulta filtra además por `organizacion_id`.
 
-**En la base** (migraciones `006` y `007`): el backend consulta Supabase **con el
+**En la base** (migraciones `006` y `008`): el backend consulta Supabase **con el
 token del usuario, nunca con la `service_role`**, así las políticas RLS se
 aplican igual. Aunque alguien saltee el backend y hable directo con la API de
 Supabase, Postgres sólo le devuelve las filas de su organización y le niega
@@ -84,7 +84,7 @@ con el token de la otra cuenta (devuelve lista vacía y `42501` al escribir).
 Ninguna cuenta puede cambiarse de organización: la clave primaria de `miembros`
 lo impide, y las dos funciones de alta fallan si el usuario ya es miembro.
 
-> **Agujero encontrado y cerrado.** Hasta la migración `007`, la política de
+> **Agujero encontrado y cerrado.** Hasta la migración `008`, la política de
 > alta de `miembros` era `usuario_id = auth.uid()`: cualquier usuario recién
 > registrado podía insertarse en **cualquier** organización con rol admin si
 > conocía su UUID, y pasaba a ver y borrar todo. Se reprodujo, se corrigió
@@ -100,3 +100,19 @@ lo impide, y las dos funciones de alta fallan si el usuario ya es miembro.
   login en vez de mostrar una tabla vacía.
 - Dar de baja a un usuario tiene efecto en la petición siguiente: su token sigue
   siendo válido, pero ya no pertenece a ninguna organización y recibe `403`.
+
+## 7. Dos decisiones pendientes de la fusión
+
+Al fusionar las dos ramas quedaron dos contratos distintos. Están marcados acá
+porque los definen tests, no el código:
+
+1. **Alta propia (`POST /api/auth/register`).** La otra rama la había quitado a
+   propósito: sólo un admin crea usuarios (`tests/admin.test.js` lo afirma). En
+   la fusión se mantuvo, porque sin ella un negocio nuevo no tiene cómo abrir su
+   cuenta —no existe todavía un admin que lo cree— y la consigna pide probar el
+   registro. **Ese test queda fallando hasta que se decida.**
+2. **El rol `consulta`.** La base lo acepta desde la migración `006` y lo usan
+   `/api/miembros` y las invitaciones, pero el módulo de administración de la
+   otra rama sólo contempla `admin` y `empleado`, y su test lo afirma. Mientras
+   tanto, un usuario de sólo lectura se asigna por invitación o por
+   `PATCH /api/miembros/:id`, no por `POST /api/admin/usuarios/rol`.

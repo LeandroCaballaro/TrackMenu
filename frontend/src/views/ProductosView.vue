@@ -1,464 +1,498 @@
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { LogIn, Pencil, Plus, RefreshCw, Save, Trash2, X } from 'lucide-vue-next'
-import logoIcono from '@/assets/2.png'
-import { supabase } from '@/supabase'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import {
+  Plus, Search, ArrowUpDown, Filter, Pencil, Trash2, X, Check, AlertCircle,
+  LogIn, Shield, Users, Building2, Package, Sparkles, UploadCloud,
+  Bell, BellRing
+} from 'lucide-vue-next'
+import logoIcono from '@/assets/3.png'
+import NavigationHeader from '@/components/NavigationHeader.vue'
+import Combobox from '@/components/Combobox.vue'
+import { authState, authService, productosService } from '@/services/api'
 
+const opcionesOrden = [
+  { value: 'creado_en', label: 'Ordenar: Fecha' },
+  { value: 'nombre', label: 'Ordenar: Nombre' },
+  { value: 'precio', label: 'Ordenar: Precio' },
+  { value: 'stock', label: 'Ordenar: Stock' },
+]
+
+const route = useRoute()
 const router = useRouter()
 
+// Estado de productos y listado
 const productos = ref([])
-const nombre = ref('')
-const descripcion = ref('')
-const precio = ref('')
-const stock = ref(0)
-const activo = ref(true)
-const archivoImagen = ref(null)
-const vistaPrevia = ref('')
-const imagenUrlExistente = ref('')
-const imagenRutaExistente = ref('')
-const inputImagen = ref(null)
-const productoEditandoId = ref(null)
+const totalProductos = ref(0)
 const cargando = ref(false)
-const mensaje = ref('')
-const errorMensaje = ref('')
 
-// Desde la migración 006 los productos y sus imágenes pertenecen a la
-// organización, no al usuario: RLS rechaza el alta sin organizacion_id.
-const organizacionId = ref('')
-const rol = ref('')
-const puedeEditar = () => ['admin', 'empleado'].includes(rol.value)
+// Filtros, búsqueda y ordenación
+const busqueda = ref('')
+const filtroActivo = ref('') // '' (todos) | 'true' | 'false'
+const campoOrden = ref('creado_en') // 'creado_en' | 'nombre' | 'precio' | 'stock'
+const direccionOrden = ref('desc') // 'desc' | 'asc'
 
-async function obtenerOrganizacionId() {
-  if (organizacionId.value) return organizacionId.value
-
-  // mi_organizacion() es la misma función que usan las políticas RLS.
-  const { data, error } = await supabase.rpc('mi_organizacion')
-
-  if (error || !data) throw new Error('Tu usuario no pertenece a ninguna organización.')
-
-  organizacionId.value = data
-  return organizacionId.value
+// Notificaciones flotantes / alertas
+const notificacion = ref({ visible: false, tipo: 'exito', mensaje: '' })
+const mostrarNotificacion = (mensaje, tipo = 'exito') => {
+  notificacion.value = { visible: true, tipo, mensaje }
+  setTimeout(() => {
+    notificacion.value.visible = false
+  }, 4500)
 }
 
-const formatearPrecio = (valor) =>
-  `$ ${Number(valor).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+// Modal / Formulario de Alta y Edición
+const formularioAbierto = ref(false)
+const modoEdicion = ref(false)
+const productoActualId = ref(null)
 
-async function cargarProductos(limpiarMensaje = true, limpiarError = true) {
-  // El guard del router sólo corre al navegar: si la sesión vence con la
-  // pantalla abierta, sin esto el listado quedaba vacío y sin aviso.
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+const form = ref({
+  nombre: '',
+  descripcion: '',
+  precio: '',
+  stock: 0,
+  activo: true,
+  imagen_url: '',
+})
+const erroresForm = ref({})
 
-  if (!session) {
-    router.replace('/login')
-    return
+// Modal de confirmación para eliminar
+const modalEliminarAbierto = ref(false)
+const productoAEliminar = ref(null)
+
+// Formateo de precio
+const formatearPrecio = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR')}`
+
+// Formateo de fecha
+const formatearFecha = (iso) => {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  } catch {
+    return ''
   }
+}
 
+// Cargar listado aplicando búsqueda, filtros y orden
+async function cargarListado() {
   cargando.value = true
-  if (limpiarError) errorMensaje.value = ''
-  if (limpiarMensaje) mensaje.value = ''
-
-  const { data, error } = await supabase
-    .from('productos')
-    .select('*')
-    .order('creado_en', { ascending: false })
-
-  if (error) {
-    errorMensaje.value = error.message
-  } else {
-    productos.value = data
-  }
-
+  const res = await productosService.listar({
+    q: busqueda.value,
+    activo: filtroActivo.value !== '' ? filtroActivo.value : null,
+    orden: campoOrden.value,
+    dir: direccionOrden.value,
+  })
   cargando.value = false
+
+  if (res.success) {
+    productos.value = res.data
+    totalProductos.value = res.total ?? res.data.length
+  } else {
+    mostrarNotificacion(res.message || 'Error al cargar productos', 'error')
+  }
 }
 
-function seleccionarImagen(evento) {
-  errorMensaje.value = ''
-  const archivo = evento.target.files?.[0]
+// Watchers para búsqueda y filtros reactivos
+watch([busqueda, filtroActivo, campoOrden, direccionOrden], () => {
+  cargarListado()
+})
 
-  if (!archivo) {
-    archivoImagen.value = null
-    vistaPrevia.value = ''
-    return
+// Abrir formulario para nuevo registro
+function abrirNuevoProducto() {
+  modoEdicion.value = false
+  productoActualId.value = null
+  form.value = {
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    stock: 0,
+    activo: true,
+    imagen_url: '',
+  }
+  erroresForm.value = {}
+  formularioAbierto.value = true
+}
+
+// Abrir formulario para editar
+async function abrirEditarProducto(producto) {
+  modoEdicion.value = true
+  productoActualId.value = producto.id
+  form.value = {
+    nombre: producto.nombre,
+    descripcion: producto.descripcion || '',
+    precio: producto.precio,
+    stock: producto.stock,
+    activo: producto.activo,
+    imagen_url: producto.imagen_url || '',
+  }
+  erroresForm.value = {}
+  formularioAbierto.value = true
+}
+
+// Guardar producto (Alta o Modificación)
+async function guardarProducto() {
+  erroresForm.value = {}
+
+  let res
+  if (modoEdicion.value) {
+    res = await productosService.actualizar(productoActualId.value, { ...form.value })
+  } else {
+    res = await productosService.crear({ ...form.value })
   }
 
-  const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp']
+  if (res.success) {
+    mostrarNotificacion(res.message, 'exito')
+    formularioAbierto.value = false
+    await cargarListado()
+  } else {
+    if (res.errors) {
+      erroresForm.value = res.errors
+      mostrarNotificacion(res.message || 'Verificá los errores en el formulario', 'error')
+    } else {
+      mostrarNotificacion(res.message || 'Ocurrió un error al procesar el producto', 'error')
+    }
+  }
+}
 
-  if (!tiposPermitidos.includes(archivo.type)) {
-    errorMensaje.value = 'La imagen debe ser JPG, PNG o WEBP.'
-    evento.target.value = ''
+// Diálogo de confirmación para eliminar
+function confirmarEliminar(producto) {
+  if (authState.rol !== 'admin') {
+    mostrarNotificacion('Acceso denegado: sólo el Administrador puede eliminar registros.', 'error')
+    return
+  }
+  productoAEliminar.value = producto
+  modalEliminarAbierto.value = true
+}
+
+async function ejecutarEliminar() {
+  if (!productoAEliminar.value) return
+  const id = productoAEliminar.value.id
+  modalEliminarAbierto.value = false
+
+  const res = await productosService.eliminar(id)
+  if (res.success) {
+    mostrarNotificacion(res.message, 'exito')
+    productoAEliminar.value = null
+    await cargarListado()
+  } else {
+    mostrarNotificacion(res.message, 'error')
+  }
+}
+
+// Subida de imagen desde dispositivo
+const inputArchivo = ref(null)
+const mostrarInputUrl = ref(false)
+
+function abrirSelectorArchivo() {
+  inputArchivo.value?.click()
+}
+
+function procesarArchivoSeleccionado(event) {
+  const archivo = event.target.files?.[0]
+  if (!archivo) return
+
+  if (!archivo.type.startsWith('image/')) {
+    mostrarNotificacion('Por favor, seleccioná un archivo de imagen válido (JPG, PNG, WebP).', 'error')
     return
   }
 
   if (archivo.size > 5 * 1024 * 1024) {
-    errorMensaje.value = 'La imagen no puede superar los 5 MB.'
-    evento.target.value = ''
+    mostrarNotificacion('La imagen no debe superar los 5MB.', 'error')
     return
   }
 
-  if (vistaPrevia.value) URL.revokeObjectURL(vistaPrevia.value)
-  archivoImagen.value = archivo
-  vistaPrevia.value = URL.createObjectURL(archivo)
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    form.value.imagen_url = e.target.result
+    mostrarNotificacion('Imagen cargada desde tu dispositivo.', 'exito')
+  }
+  reader.onerror = () => {
+    mostrarNotificacion('No se pudo leer la imagen seleccionada.', 'error')
+  }
+  reader.readAsDataURL(archivo)
 }
 
-async function subirImagen() {
-  if (!archivoImagen.value) return null
-
-  const {
-    data: { user },
-    error: errorUsuario,
-  } = await supabase.auth.getUser()
-
-  if (errorUsuario || !user) {
-    throw new Error('No hay un usuario autenticado.')
-  }
-
-  const extension = archivoImagen.value.name.split('.').pop().toLowerCase()
-  const ruta = `${await obtenerOrganizacionId()}/${crypto.randomUUID()}.${extension}`
-
-  const { error: errorSubida } = await supabase.storage
-    .from('productos')
-    .upload(ruta, archivoImagen.value, { cacheControl: '3600', upsert: false })
-
-  if (errorSubida) throw errorSubida
-
-  const { data } = supabase.storage.from('productos').getPublicUrl(ruta)
-
-  return { url: data.publicUrl, ruta }
-}
-
-async function guardarProducto() {
-  errorMensaje.value = ''
-  mensaje.value = ''
-
-  if (!nombre.value.trim()) {
-    errorMensaje.value = 'El nombre es obligatorio.'
-    return
-  }
-
-  if (precio.value === '' || Number(precio.value) < 0) {
-    errorMensaje.value = 'Ingresá un precio válido.'
-    return
-  }
-
-  if (Number(stock.value) < 0) {
-    errorMensaje.value = 'El stock no puede ser negativo.'
-    return
-  }
-
-  if (!productoEditandoId.value && !archivoImagen.value) {
-    errorMensaje.value = 'Seleccioná una imagen para el producto.'
-    return
-  }
-
-  cargando.value = true
-  let nuevaImagen
-
-  try {
-    nuevaImagen = await subirImagen()
-
-    const datosProducto = {
-      nombre: nombre.value.trim(),
-      descripcion: descripcion.value.trim() || null,
-      precio: Number(precio.value),
-      stock: Number(stock.value),
-      activo: activo.value,
-      imagen_url: nuevaImagen?.url ?? imagenUrlExistente.value,
-      imagen_ruta: nuevaImagen?.ruta ?? imagenRutaExistente.value,
-    }
-
-    let error
-
-    if (productoEditandoId.value) {
-      // .select() devuelve las filas tocadas: sin él, actualizar un producto
-      // que ya no existe no da error y avisaba 'actualizado correctamente'.
-      let filas
-      ;({ data: filas, error } = await supabase
-        .from('productos')
-        .update(datosProducto)
-        .eq('id', productoEditandoId.value)
-        .select())
-
-      if (!error && filas.length === 0) {
-        error = new Error('El producto ya no existe o no tenés permiso para modificarlo.')
-      }
-    } else {
-      ;({ error } = await supabase
-        .from('productos')
-        .insert({ ...datosProducto, organizacion_id: await obtenerOrganizacionId() }))
-    }
-
-    if (error) {
-      if (nuevaImagen?.ruta) {
-        await supabase.storage.from('productos').remove([nuevaImagen.ruta])
-      }
-      throw error
-    }
-
-    if (productoEditandoId.value && nuevaImagen?.ruta && imagenRutaExistente.value) {
-      await supabase.storage.from('productos').remove([imagenRutaExistente.value])
-    }
-
-    mensaje.value = productoEditandoId.value
-      ? 'Producto actualizado correctamente.'
-      : 'Producto creado correctamente.'
-
-    limpiarFormulario()
-    await cargarProductos(false)
-  } catch (error) {
-    errorMensaje.value = error.message
-    // el listado puede haber quedado viejo (por ejemplo, el producto ya no está)
-    await cargarProductos(false, false)
-  } finally {
-    cargando.value = false
+function quitarImagen() {
+  form.value.imagen_url = ''
+  if (inputArchivo.value) {
+    inputArchivo.value.value = ''
   }
 }
 
-function editarProducto(producto) {
-  productoEditandoId.value = producto.id
-  nombre.value = producto.nombre
-  descripcion.value = producto.descripcion ?? ''
-  precio.value = producto.precio
-  stock.value = producto.stock
-  activo.value = producto.activo
-  imagenUrlExistente.value = producto.imagen_url ?? ''
-  imagenRutaExistente.value = producto.imagen_ruta ?? ''
-  archivoImagen.value = null
-  vistaPrevia.value = ''
-  if (inputImagen.value) inputImagen.value.value = ''
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+// Modal y estado para Notificar Falta de Stock (Rol Empleado)
+const modalNotificarStockAbierto = ref(false)
+const productoANotificar = ref(null)
+const motivoNotificacion = ref('')
+const enviandoNotificacion = ref(false)
+
+function abrirNotificarStock(producto) {
+  productoANotificar.value = producto
+  motivoNotificacion.value = 'Sin stock disponible en salón/cocina'
+  modalNotificarStockAbierto.value = true
 }
 
-async function eliminarProducto(producto) {
-  const confirmado = window.confirm(`¿Querés eliminar el producto "${producto.nombre}"?`)
-  if (!confirmado) return
+async function enviarNotificacionStock() {
+  if (!productoANotificar.value) return
+  enviandoNotificacion.value = true
+  const res = await productosService.notificarFaltaStock(
+    productoANotificar.value.id,
+    motivoNotificacion.value
+  )
+  enviandoNotificacion.value = false
+  modalNotificarStockAbierto.value = false
 
-  cargando.value = true
-  errorMensaje.value = ''
-  mensaje.value = ''
-
-  // Sin .select() un borrado que no toca ninguna fila (producto ya eliminado,
-  // o rol sin permiso) no da error y avisaba 'eliminado correctamente'.
-  const { data: filas, error } = await supabase
-    .from('productos')
-    .delete()
-    .eq('id', producto.id)
-    .select()
-
-  if (error || filas.length === 0) {
-    errorMensaje.value = error
-      ? error.message
-      : 'El producto ya no existe o no tenés permiso para eliminarlo.'
-    await cargarProductos(false, false)
-    cargando.value = false
-    return
+  if (res.success) {
+    mostrarNotificacion(res.message, 'exito')
+  } else {
+    mostrarNotificacion(res.message || 'No se pudo enviar la notificación', 'error')
   }
-
-  if (producto.imagen_ruta) {
-    const { error: errorImagen } = await supabase.storage
-      .from('productos')
-      .remove([producto.imagen_ruta])
-
-    if (errorImagen) {
-      errorMensaje.value = 'El producto se eliminó, pero no se pudo borrar su imagen.'
-    }
-  }
-
-  if (!errorMensaje.value) mensaje.value = 'Producto eliminado correctamente.'
-  if (productoEditandoId.value === producto.id) limpiarFormulario()
-
-  await cargarProductos(false)
-  cargando.value = false
 }
 
-function limpiarFormulario() {
-  nombre.value = ''
-  descripcion.value = ''
-  precio.value = ''
-  stock.value = 0
-  activo.value = true
-  productoEditandoId.value = null
-  archivoImagen.value = null
-  imagenUrlExistente.value = ''
-  imagenRutaExistente.value = ''
-  if (vistaPrevia.value) URL.revokeObjectURL(vistaPrevia.value)
-  vistaPrevia.value = ''
-  if (inputImagen.value) inputImagen.value.value = ''
-}
-
-function cancelarEdicion() {
-  limpiarFormulario()
-  mensaje.value = ''
-  errorMensaje.value = ''
-}
-
-async function cerrarSesion() {
-  await supabase.auth.signOut()
+// Cerrar sesión
+function cerrarSesion() {
+  authService.logout()
   router.push('/login')
 }
 
-onMounted(async () => {
-  const { data } = await supabase.rpc('mi_rol')
-  rol.value = data ?? ''
-  await cargarProductos()
+onMounted(() => {
+  cargarListado()
+  // Si la ruta es /productos/nuevo, abrir formulario automáticamente
+  if (route.meta.accion === 'nuevo') {
+    abrirNuevoProducto()
+  }
 })
 </script>
 
 <template>
-  <main class="min-h-screen overflow-x-hidden bg-[#f6f1e8] text-[#17120e]">
-    <header class="w-full border-b border-[#ded4c5] bg-[#fbf8f2] px-3 py-3 sm:px-5 sm:py-4 md:px-8">
-      <div class="mx-auto flex w-full max-w-[1400px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <RouterLink to="/inicio" class="flex items-center gap-3">
-          <img :src="logoIcono" alt="TrackMenú" class="h-14 w-14 shrink-0 object-contain sm:h-16 sm:w-16" />
-          <span class="flex flex-col">
-            <span class="font-girassol text-[24px] leading-none tracking-wide text-[#d65d2a]">TrackMenú</span>
-            <span class="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a18262]">Administración del menú</span>
-          </span>
-        </RouterLink>
-        <button type="button" @click="cerrarSesion"
-          class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
-          <LogIn :size="15" class="rotate-180" /> Cerrar sesión
+  <main class="min-h-screen overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+    <!-- Notificación Toast sobria -->
+    <transition
+      enter-active-class="transform transition ease-out duration-200"
+      enter-from-class="translate-y-2 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div v-if="notificacion.visible"
+        class="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-xs font-semibold shadow-lg"
+        :class="[
+          notificacion.tipo === 'exito' ? 'border-[#204933] bg-[#163223] text-[#4ade80]' : '',
+          notificacion.tipo === 'error' ? 'border-rose-900/60 bg-[#2b1111] text-rose-300' : '',
+          notificacion.tipo === 'info' ? 'border-stone-800 bg-[#17120f] text-[#e58a4e]' : ''
+        ]">
+        <Check v-if="notificacion.tipo === 'exito'" :size="16" />
+        <AlertCircle v-else :size="16" />
+        <span>{{ notificacion.mensaje }}</span>
+        <button type="button" @click="notificacion.visible = false" class="ml-2 text-stone-400 hover:text-white">
+          <X :size="14" />
         </button>
       </div>
-    </header>
+    </transition>
 
-    <div class="mx-auto grid w-full max-w-[1400px] gap-5 px-2 py-4 sm:gap-8 sm:px-5 sm:py-8 md:px-8" :class="puedeEditar() ? 'lg:grid-cols-[380px_minmax(0,1fr)]' : 'lg:grid-cols-1'">
-      <section v-if="puedeEditar()" class="h-fit rounded-3xl border border-[#e4d9c8] bg-[#fffaf2] p-5 shadow-sm sm:p-6">
-        <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a18262]">Administración</p>
-        <h1 class="mt-1 font-serif text-2xl font-bold sm:text-3xl">
-          {{ productoEditandoId ? 'Editar producto' : 'Nuevo producto' }}
-        </h1>
-        <p class="mt-2 text-sm leading-relaxed text-[#806f5d]">
-          Completá los datos y guardá una imagen JPG, PNG o WEBP.
-        </p>
-
-        <form class="mt-5 space-y-4" @submit.prevent="guardarProducto">
-          <label class="block text-xs font-bold text-[#806f5d]">
-            Nombre
-            <input v-model="nombre" type="text" maxlength="120" required
-              class="mt-2 w-full rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]" />
-          </label>
-
-          <label class="block text-xs font-bold text-[#806f5d]">
-            Descripción
-            <textarea v-model="descripcion" rows="3"
-              class="mt-2 w-full resize-y rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]"></textarea>
-          </label>
-
-          <div class="grid gap-4 sm:grid-cols-2">
-            <label class="block text-xs font-bold text-[#806f5d]">
-              Precio
-              <input v-model="precio" type="number" min="0" step="0.01" required
-                class="mt-2 w-full rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]" />
-            </label>
-            <label class="block text-xs font-bold text-[#806f5d]">
-              Stock
-              <input v-model="stock" type="number" min="0" step="1" required
-                class="mt-2 w-full rounded-xl border border-[#dfd1bd] bg-white px-3 py-3 text-sm text-[#17120e] outline-none focus:border-[#d65d2a]" />
-            </label>
-          </div>
-
-          <label class="block text-xs font-bold text-[#806f5d]">
-            Imagen del producto
-            <input ref="inputImagen" type="file" accept="image/jpeg,image/png,image/webp" @change="seleccionarImagen"
-              class="mt-2 w-full cursor-pointer rounded-xl border border-dashed border-[#dfd1bd] bg-white px-3 py-3 text-xs text-[#5b4938] outline-none file:mr-3 file:rounded-full file:border-0 file:bg-[#eee5d8] file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[#5b4938] focus:border-[#d65d2a]" />
-            <small class="mt-1 block text-[11px] font-semibold text-[#9b8874]">Máximo 5 MB.</small>
-          </label>
-
-          <div v-if="vistaPrevia || imagenUrlExistente" class="flex items-center gap-3 rounded-2xl bg-[#f6f1e8] p-3">
-            <img :src="vistaPrevia || imagenUrlExistente" alt="Vista previa del producto"
-              class="h-16 w-16 shrink-0 rounded-xl object-cover" />
-            <span class="text-xs font-bold text-[#806f5d]">
-              {{ vistaPrevia ? 'Nueva imagen seleccionada' : 'Imagen actual' }}
+    <!-- Contenido Principal del Módulo -->
+    <div class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:px-8">
+      <!-- Encabezado de la Sección -->
+      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Catálogo de Menú</p>
+            <span class="rounded-full border border-stone-800 bg-[#17120f] px-2.5 py-0.5 text-[10px] text-stone-400">
+              {{ totalProductos }} {{ totalProductos === 1 ? 'producto' : 'productos' }}
             </span>
           </div>
-
-          <label class="flex items-center gap-2 text-xs font-bold text-[#5b4938]">
-            <input v-model="activo" type="checkbox" class="h-4 w-4 accent-[#d65d2a]" />
-            Producto activo
-          </label>
-
-          <p v-if="errorMensaje" role="alert" class="rounded-xl bg-[#fbe6de] px-3 py-2 text-sm text-[#b83d14]">
-            {{ errorMensaje }}
+          <h1 class="mt-1 font-serif text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Gestión de Productos
+          </h1>
+          <p class="mt-1 text-xs text-stone-400">
+            Administrá los precios, stock y disponibilidad de tu restaurante con control de permisos por rol.
           </p>
-          <p v-if="mensaje" class="rounded-xl bg-[#e3f0e6] px-3 py-2 text-sm text-[#2f6f4f]">{{ mensaje }}</p>
-
-          <div class="flex flex-col gap-2 sm:flex-row">
-            <button type="submit" :disabled="cargando"
-              class="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#d65d2a] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#b94b1e] disabled:opacity-60">
-              <component :is="productoEditandoId ? Save : Plus" :size="16" />
-              {{ cargando ? 'Guardando...' : productoEditandoId ? 'Actualizar producto' : 'Crear producto' }}
-            </button>
-            <button v-if="productoEditandoId" type="button" @click="cancelarEdicion"
-              class="flex items-center justify-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-3 text-sm font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
-              <X :size="16" /> Cancelar
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section class="rounded-3xl border border-[#e4d9c8] bg-[#fffaf2] p-5 shadow-sm sm:p-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#a18262]">Inventario</p>
-            <h2 class="mt-1 font-serif text-2xl font-bold sm:text-3xl">Mis productos</h2>
-          </div>
-          <button type="button" :disabled="cargando" @click="cargarProductos"
-            class="flex w-fit items-center gap-2 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-4 py-2.5 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5] disabled:opacity-60">
-            <RefreshCw :size="15" /> Actualizar
-          </button>
         </div>
 
-        <p v-if="cargando && !productos.length" class="mt-6 text-sm text-[#806f5d]">Cargando productos...</p>
-        <p v-else-if="!productos.length"
-          class="mt-6 rounded-2xl bg-[#f6f1e8] px-4 py-6 text-center text-sm font-semibold text-[#806f5d]">
-          Todavía no creaste productos.
-        </p>
+        <!-- Botón Crear Nuevo Registro -->
+        <div>
+          <button type="button" @click="abrirNuevoProducto"
+            class="flex items-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
+            <Plus :size="16" />
+            <span>Nuevo Producto</span>
+          </button>
+        </div>
+      </div>
 
-        <div v-else class="mt-5 overflow-x-auto">
-          <table class="w-full min-w-[640px] border-separate border-spacing-y-2 text-left text-sm">
+      <!-- Barra de Filtros, Búsqueda y Ordenación -->
+      <section class="mb-6 rounded-2xl border border-stone-800/80 bg-[#17120f] p-4 text-white">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+          <!-- Búsqueda en vivo por nombre -->
+          <div class="relative lg:col-span-5">
+            <Search :size="15" class="absolute left-3.5 top-3.5 text-stone-400" />
+            <input v-model="busqueda" type="text" placeholder="Buscar producto por nombre..."
+              class="w-full rounded-xl border border-stone-800 bg-[#110d0b] pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
+            <button v-if="busqueda" type="button" @click="busqueda = ''"
+              class="absolute right-3 top-3 text-stone-400 hover:text-white">
+              <X :size="13" />
+            </button>
+          </div>
+
+          <!-- Filtro por Estado (Todos, Activo, Inactivo) -->
+          <div class="flex items-center gap-1 lg:col-span-4">
+            <span class="text-[11px] font-semibold text-stone-400 mr-1 hidden sm:inline">Estado:</span>
+            <div class="flex rounded-xl border border-stone-800 bg-[#110d0b] p-1 text-xs w-full sm:w-auto">
+              <button type="button" @click="filtroActivo = ''"
+                class="flex-1 sm:flex-none rounded-lg px-3 py-1.5 font-semibold transition"
+                :class="filtroActivo === '' ? 'bg-[#221a15] text-[#e58a4e]' : 'text-stone-400 hover:text-white'">
+                Todos
+              </button>
+              <button type="button" @click="filtroActivo = 'true'"
+                class="flex-1 sm:flex-none rounded-lg px-3 py-1.5 font-semibold transition"
+                :class="filtroActivo === 'true' ? 'bg-[#163223] text-[#4ade80]' : 'text-stone-400 hover:text-white'">
+                Activos
+              </button>
+              <button type="button" @click="filtroActivo = 'false'"
+                class="flex-1 sm:flex-none rounded-lg px-3 py-1.5 font-semibold transition"
+                :class="filtroActivo === 'false' ? 'bg-[#2b1111] text-rose-300' : 'text-stone-400 hover:text-white'">
+                Inactivos
+              </button>
+            </div>
+          </div>
+
+          <!-- Ordenación (Campo y Dirección) -->
+          <div class="flex items-center gap-2 lg:col-span-3">
+            <div class="flex-1">
+              <Combobox
+                v-model="campoOrden"
+                :options="opcionesOrden"
+                size="sm"
+              />
+            </div>
+            <button type="button"
+              @click="direccionOrden = direccionOrden === 'asc' ? 'desc' : 'asc'"
+              :title="direccionOrden === 'asc' ? 'Ascendente (click para invertir)' : 'Descendente (click para invertir)'"
+              class="flex items-center gap-1 rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2.5 text-xs font-semibold text-stone-300 transition hover:border-[#e58a4e]/40 hover:text-white">
+              <ArrowUpDown :size="13" />
+              <span>{{ direccionOrden === 'asc' ? 'Asc' : 'Desc' }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tabla / Listado de Registros -->
+      <section class="rounded-2xl border border-stone-800/80 bg-[#17120f] overflow-hidden">
+        <!-- Estado de carga -->
+        <div v-if="cargando" class="py-12 text-center text-xs text-stone-400">
+          Cargando productos del menú...
+        </div>
+
+        <!-- Estado vacío: Sin resultados -->
+        <div v-else-if="!productos.length" class="py-14 text-center px-4">
+          <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-stone-800 bg-[#110d0b] text-stone-400 mb-3">
+            <Package :size="20" />
+          </div>
+          <h3 class="font-serif text-lg font-bold text-white">No se encontraron productos</h3>
+          <p class="mt-1 text-xs text-stone-400 max-w-sm mx-auto">
+            {{ busqueda || filtroActivo ? 'No hay productos que coincidan con la búsqueda o filtro aplicado.' : 'Aún no registraste productos para esta organización.' }}
+          </p>
+          <div class="mt-4 flex items-center justify-center gap-2">
+            <button v-if="busqueda || filtroActivo" type="button" @click="busqueda = ''; filtroActivo = ''"
+              class="rounded-full border border-stone-800 bg-[#110d0b] px-4 py-2 text-xs font-semibold text-stone-300 hover:text-white transition">
+              Limpiar filtros
+            </button>
+            <button type="button" @click="abrirNuevoProducto"
+              class="rounded-full bg-[#e58a4e] px-4 py-2 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e]">
+              + Cargar Primer Producto
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div v-else class="overflow-x-auto">
+          <table class="w-full min-w-[700px] text-left text-xs border-collapse">
             <thead>
-              <tr class="text-[11px] font-bold uppercase tracking-[0.14em] text-[#a18262]">
-                <th class="px-3 pb-1">Imagen</th>
-                <th class="px-3 pb-1">Producto</th>
-                <th class="px-3 pb-1">Precio</th>
-                <th class="px-3 pb-1">Stock</th>
-                <th class="px-3 pb-1">Estado</th>
-                <th class="px-3 pb-1 text-right">Acciones</th>
+              <tr class="border-b border-stone-800/80 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400 bg-[#130f0d]">
+                <th class="py-3.5 px-4">Producto</th>
+                <th class="py-3.5 px-4">Descripción</th>
+                <th class="py-3.5 px-4">Precio</th>
+                <th class="py-3.5 px-4">Stock</th>
+                <th class="py-3.5 px-4">Estado</th>
+                <th class="py-3.5 px-4">Fecha</th>
+                <th class="py-3.5 px-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="producto in productos" :key="producto.id" class="bg-[#f6f1e8]">
-                <td class="rounded-l-2xl px-3 py-3">
-                  <img v-if="producto.imagen_url" :src="producto.imagen_url" :alt="producto.nombre"
-                    class="h-14 w-14 rounded-xl object-cover" />
-                  <span v-else class="text-[11px] font-semibold text-[#9b8874]">Sin imagen</span>
+            <tbody class="divide-y divide-stone-800/50">
+              <tr v-for="producto in productos" :key="producto.id"
+                class="transition hover:bg-[#1a1411]">
+                <!-- Imagen y Nombre -->
+                <td class="py-3 px-4">
+                  <div class="flex items-center gap-3">
+                    <img v-if="producto.imagen_url" :src="producto.imagen_url" :alt="producto.nombre"
+                      class="h-10 w-10 shrink-0 rounded-xl object-cover bg-stone-900 border border-stone-800" />
+                    <div v-else class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-900 border border-stone-800 text-[9px] text-stone-400">
+                      Sin foto
+                    </div>
+                    <span class="font-bold text-white text-sm">{{ producto.nombre }}</span>
+                  </div>
                 </td>
-                <td class="px-3 py-3">
-                  <strong class="block font-bold text-[#17120e]">{{ producto.nombre }}</strong>
-                  <small class="mt-0.5 block max-w-[280px] text-xs leading-relaxed text-[#806f5d]">
-                    {{ producto.descripcion || 'Sin descripción' }}
-                  </small>
+
+                <!-- Descripción -->
+                <td class="py-3 px-4 max-w-[260px]">
+                  <p class="truncate text-stone-400" :title="producto.descripcion || 'Sin descripción'">
+                    {{ producto.descripcion || '—' }}
+                  </p>
                 </td>
-                <td class="px-3 py-3 font-bold">{{ formatearPrecio(producto.precio) }}</td>
-                <td class="px-3 py-3 font-semibold">{{ producto.stock }}</td>
-                <td class="px-3 py-3">
-                  <span class="rounded-full px-3 py-1.5 text-[11px] font-bold"
-                    :class="producto.activo ? 'bg-[#e3f0e6] text-[#2f6f4f]' : 'bg-[#eee5d8] text-[#806f5d]'">
+
+                <!-- Precio -->
+                <td class="py-3 px-4 font-bold text-[#e58a4e] text-sm">
+                  {{ formatearPrecio(producto.precio) }}
+                </td>
+
+                <!-- Stock -->
+                <td class="py-3 px-4">
+                  <span class="font-semibold text-stone-200" :class="producto.stock <= 5 ? 'text-amber-400' : ''">
+                    {{ producto.stock }} un.
+                  </span>
+                </td>
+
+                <!-- Estado Activo / Inactivo -->
+                <td class="py-3 px-4">
+                  <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold"
+                    :class="producto.activo ? 'border border-[#204933] bg-[#163223] text-[#4ade80]' : 'border border-stone-800 bg-[#110d0b] text-stone-400'">
+                    <span class="h-1.5 w-1.5 rounded-full" :class="producto.activo ? 'bg-[#4ade80]' : 'bg-stone-500'" />
                     {{ producto.activo ? 'Activo' : 'Inactivo' }}
                   </span>
                 </td>
-                <td class="rounded-r-2xl px-3 py-3">
-                  <div class="flex justify-end gap-2">
-                    <button v-if="puedeEditar()" type="button" @click="editarProducto(producto)"
-                      class="flex items-center gap-1.5 rounded-full border border-[#d8c8b4] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#5b4938] transition hover:bg-[#f0e5d5]">
-                      <Pencil :size="14" /> Editar
+
+                <!-- Fecha -->
+                <td class="py-3 px-4 text-stone-400">
+                  {{ formatearFecha(producto.creado_en) }}
+                </td>
+
+                <!-- Acciones (según Rol) -->
+                <td class="py-3 px-4 text-right">
+                  <div class="flex items-center justify-end gap-1.5">
+                    <!-- Botón Modificar (Admin y Empleado) -->
+                    <button type="button"
+                      @click="abrirEditarProducto(producto)"
+                      class="flex items-center gap-1 rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-1.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white"
+                      title="Modificar registro">
+                      <Pencil :size="12" />
+                      <span>Editar</span>
                     </button>
-                    <button v-if="rol === 'admin'" type="button" @click="eliminarProducto(producto)"
-                      class="flex items-center gap-1.5 rounded-full bg-[#b83d14] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#95300e]">
-                      <Trash2 :size="14" /> Eliminar
+
+                    <!-- Notificar Falta de Stock (Empleado) -->
+                    <button v-if="authState.rol === 'empleado'" type="button"
+                      @click="abrirNotificarStock(producto)"
+                      class="flex items-center gap-1 rounded-xl border border-amber-800/60 bg-amber-950/30 px-2.5 py-1.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-900/40 hover:text-amber-100"
+                      title="Notificar falta de stock al Administrador">
+                      <Bell :size="12" />
+                      <span>Falta stock</span>
+                    </button>
+
+                    <!-- Botón Eliminar (ÚNICAMENTE Admin) -->
+                    <button v-if="authState.rol === 'admin'" type="button"
+                      @click="confirmarEliminar(producto)"
+                      class="flex items-center gap-1 rounded-xl border border-rose-900/40 bg-rose-950/20 px-3 py-1.5 text-xs font-semibold text-rose-300 transition hover:bg-rose-950/40"
+                      title="Eliminar producto (requiere confirmación)">
+                      <Trash2 :size="12" />
+                      <span>Borrar</span>
                     </button>
                   </div>
                 </td>
@@ -467,6 +501,278 @@ onMounted(async () => {
           </table>
         </div>
       </section>
+    </div>
+
+    <!-- Modal Formulario: Alta y Modificación de Producto -->
+    <div v-if="formularioAbierto"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+      @click.self="formularioAbierto = false">
+      <div class="w-full max-w-lg rounded-3xl border border-stone-800 bg-[#17120f] p-6 text-white my-8 shadow-2xl">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">
+              {{ modoEdicion ? 'Actualización de Datos' : 'Nuevo Registro de Menú' }}
+            </p>
+            <h2 class="font-serif text-2xl font-bold text-white mt-0.5">
+              {{ modoEdicion ? 'Modificar Producto' : 'Crear Producto' }}
+            </h2>
+          </div>
+          <button type="button" @click="formularioAbierto = false"
+            class="rounded-full p-2 text-stone-400 hover:bg-[#221a15] hover:text-white transition">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="mt-5 space-y-4" @submit.prevent="guardarProducto">
+          <!-- Nombre -->
+          <div>
+            <label class="block text-xs font-bold text-stone-300">
+              Nombre del Producto *
+              <input v-model="form.nombre" type="text" maxlength="80" required placeholder="Ej: Pizza Napolitana Especial"
+                class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
+                :class="erroresForm.nombre ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
+            </label>
+            <span v-if="erroresForm.nombre" class="text-[11px] font-medium text-rose-400 mt-1 block">
+              {{ erroresForm.nombre }}
+            </span>
+          </div>
+
+          <!-- Descripción -->
+          <div>
+            <label class="block text-xs font-bold text-stone-300">
+              Descripción
+              <textarea v-model="form.descripcion" rows="2" maxlength="500" placeholder="Ingredientes, detalles de preparación o presentación..."
+                class="mt-1.5 w-full resize-none rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
+                :class="erroresForm.descripcion ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'"></textarea>
+            </label>
+            <span v-if="erroresForm.descripcion" class="text-[11px] font-medium text-rose-400 mt-1 block">
+              {{ erroresForm.descripcion }}
+            </span>
+          </div>
+
+          <!-- Precio y Stock en 2 columnas -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-stone-300">
+                Precio ($) *
+                <input v-model="form.precio" type="number" min="0" step="0.01" required placeholder="0.00"
+                  class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
+                  :class="erroresForm.precio ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
+              </label>
+              <span v-if="erroresForm.precio" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                {{ erroresForm.precio }}
+              </span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-stone-300">
+                Stock (unidades) *
+                <input v-model="form.stock" type="number" min="0" step="1" required placeholder="0"
+                  :disabled="authState.rol === 'empleado'"
+                  class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
+                  :class="[
+                    authState.rol === 'empleado'
+                      ? 'opacity-50 cursor-not-allowed bg-stone-900 border-stone-800 text-stone-400'
+                      : (erroresForm.stock ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]')
+                  ]" />
+              </label>
+              <p v-if="authState.rol === 'empleado'" class="mt-1 text-[11px] text-amber-400 flex items-start gap-1">
+                <AlertCircle :size="12" class="shrink-0 mt-0.5" />
+                <span>Solo Administradores pueden editar el stock. Si se agotó, podés notificarlo abajo.</span>
+              </p>
+              <span v-else-if="erroresForm.stock" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                {{ erroresForm.stock }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Banner para rol Empleado para Notificar Falta de Stock -->
+          <div v-if="modoEdicion && authState.rol === 'empleado'"
+            class="flex items-center justify-between rounded-2xl border border-amber-900/50 bg-amber-950/20 p-3">
+            <div class="flex items-center gap-2">
+              <BellRing :size="16" class="text-amber-400 shrink-0" />
+              <div class="text-[11px] text-stone-300">
+                <p class="font-bold text-amber-300">¿No hay más stock de este producto?</p>
+                <p class="text-stone-400">Podés avisarle al administrador de inmediato.</p>
+              </div>
+            </div>
+            <button type="button"
+              @click="abrirNotificarStock({ id: productoActualId, nombre: form.nombre, stock: form.stock })"
+              class="rounded-xl border border-amber-800/60 bg-amber-900/40 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-800/60 transition">
+              Notificar falta
+            </button>
+          </div>
+
+          <!-- Imagen del Producto (Subir desde Dispositivo o URL) -->
+          <div>
+            <label class="block text-xs font-bold text-stone-300 mb-1.5">
+              Imagen del Plato o Producto (Subir desde dispositivo)
+            </label>
+
+            <!-- Input invisible para archivo del dispositivo -->
+            <input ref="inputArchivo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+              class="hidden" @change="procesarArchivoSeleccionado" />
+
+            <!-- Vista 1: Ya tiene imagen asignada -->
+            <div v-if="form.imagen_url"
+              class="flex items-center gap-3.5 rounded-2xl border border-stone-800 bg-[#110d0b] p-3">
+              <div class="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                <img :src="form.imagen_url" :alt="form.nombre || 'Vista previa'"
+                  class="h-full w-full object-cover" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-stone-200 truncate">
+                  {{ form.nombre ? form.nombre : 'Imagen del plato' }}
+                </p>
+                <p class="text-[10px] text-stone-400 mt-0.5">
+                  {{ form.imagen_url.startsWith('data:') ? '✓ Archivo local cargado' : '✓ Enlace web configurado' }}
+                </p>
+                <div class="flex items-center gap-2 mt-2">
+                  <button type="button" @click="abrirSelectorArchivo"
+                    class="flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-800/80 px-2.5 py-1 text-[11px] font-semibold text-stone-200 hover:bg-stone-700 hover:text-white transition">
+                    <UploadCloud :size="12" />
+                    <span>Cambiar archivo</span>
+                  </button>
+                  <button type="button" @click="quitarImagen"
+                    class="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-950/40 transition">
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Vista 2: Sin imagen, zona interactiva de carga -->
+            <div v-else class="space-y-2">
+              <div @click="abrirSelectorArchivo"
+                class="group flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-800 bg-[#110d0b]/80 p-5 text-center cursor-pointer transition hover:border-[#e58a4e]/60 hover:bg-[#1a1411]">
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-800/60 text-[#e58a4e] group-hover:scale-105 transition">
+                  <UploadCloud :size="20" />
+                </div>
+                <p class="mt-2 text-xs font-bold text-stone-200 group-hover:text-[#e58a4e] transition">
+                  Subir imagen desde este dispositivo
+                </p>
+                <p class="text-[11px] text-stone-400 mt-0.5">
+                  Hacé clic acá para seleccionar archivo (JPG, PNG, WebP hasta 5MB)
+                </p>
+              </div>
+
+              <!-- Enlace opcional para escribir URL web -->
+              <div class="flex items-center justify-between px-1">
+                <button type="button" @click="mostrarInputUrl = !mostrarInputUrl"
+                  class="text-[11px] text-stone-400 hover:text-[#e58a4e] transition">
+                  {{ mostrarInputUrl ? 'Ocultar ingreso por URL' : '¿O preferís ingresar una URL web?' }}
+                </button>
+              </div>
+
+              <div v-if="mostrarInputUrl" class="mt-1">
+                <input v-model="form.imagen_url" type="url" placeholder="https://ejemplo.com/foto-plato.jpg"
+                  class="w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
+              </div>
+            </div>
+
+            <span v-if="erroresForm.imagen_url" class="text-[11px] font-medium text-rose-400 mt-1 block">
+              {{ erroresForm.imagen_url }}
+            </span>
+          </div>
+
+          <!-- Estado Activo / Inactivo -->
+          <label class="flex cursor-pointer items-center gap-2.5 text-xs font-bold text-stone-300 pt-1">
+            <input v-model="form.activo" type="checkbox" class="h-4 w-4 accent-[#e58a4e] rounded" />
+            <span>Producto disponible en el menú (Activo)</span>
+          </label>
+
+          <!-- Botones de Acción del Formulario -->
+          <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-stone-800/80">
+            <button type="button" @click="formularioAbierto = false"
+              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
+              Cancelar
+            </button>
+            <button type="submit"
+              class="flex items-center gap-1.5 rounded-xl bg-[#e58a4e] px-5 py-2.5 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
+              <Check :size="15" />
+              <span>{{ modoEdicion ? 'Guardar Cambios' : 'Crear Producto' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal de Confirmación Elegante para Eliminar Registro -->
+    <div v-if="modalEliminarAbierto"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+      @click.self="modalEliminarAbierto = false">
+      <div class="w-full max-w-md rounded-3xl border border-rose-900/60 bg-[#17120f] p-6 text-white shadow-2xl">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-900/50 bg-rose-950/30 text-rose-300">
+            <Trash2 :size="18" />
+          </div>
+          <div>
+            <h3 class="font-serif text-xl font-bold text-white">¿Eliminar producto?</h3>
+            <p class="text-xs text-stone-400">Esta acción no se puede deshacer.</p>
+          </div>
+        </div>
+
+        <p class="mt-4 text-xs leading-relaxed text-stone-300">
+          Estás por eliminar permanentemente
+          <strong class="text-white">"{{ productoAEliminar?.nombre }}"</strong>
+          del catálogo de tu negocio (<span class="text-[#e58a4e]">{{ authState.organizacion?.nombre }}</span>).
+        </p>
+
+        <div class="mt-6 flex items-center justify-end gap-2.5 border-t border-stone-800/80 pt-4">
+          <button type="button" @click="modalEliminarAbierto = false"
+            class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
+            Cancelar
+          </button>
+          <button type="button" @click="ejecutarEliminar"
+            class="rounded-xl border border-rose-900/60 bg-rose-900/40 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-900/60 transition">
+            Sí, eliminar registro
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Notificar Falta de Stock al Administrador (Rol Empleado) -->
+    <div v-if="modalNotificarStockAbierto"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+      @click.self="modalNotificarStockAbierto = false">
+      <div class="w-full max-w-md rounded-3xl border border-amber-800/60 bg-[#17120f] p-6 text-white shadow-2xl">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-900/50 bg-amber-950/30 text-amber-300">
+            <BellRing :size="18" />
+          </div>
+          <div>
+            <h3 class="font-serif text-xl font-bold text-white">Notificar falta de stock</h3>
+            <p class="text-xs text-stone-400">Aviso directo al panel del Administrador</p>
+          </div>
+        </div>
+
+        <p class="mt-4 text-xs leading-relaxed text-stone-300">
+          ¿Deseás notificar que se agotó el stock de
+          <strong class="text-white">"{{ productoANotificar?.nombre }}"</strong>?
+          El administrador verá esta alerta inmediatamente en su panel de control.
+        </p>
+
+        <form class="mt-4 space-y-3" @submit.prevent="enviarNotificacionStock">
+          <label class="block text-xs font-bold text-stone-300">
+            Motivo o comentario (opcional)
+            <textarea v-model="motivoNotificacion" rows="2"
+              placeholder="Ej: Se terminaron las unidades en heladera durante el turno..."
+              class="mt-1.5 w-full resize-none rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none focus:border-amber-500 transition"></textarea>
+          </label>
+
+          <div class="mt-5 flex items-center justify-end gap-2.5 border-t border-stone-800/80 pt-4">
+            <button type="button" @click="modalNotificarStockAbierto = false"
+              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
+              Cancelar
+            </button>
+            <button type="submit" :disabled="enviandoNotificacion"
+              class="flex items-center gap-1.5 rounded-xl border border-amber-800/60 bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-[#190d05] transition disabled:opacity-50">
+              <Check :size="14" />
+              <span>{{ enviandoNotificacion ? 'Enviando...' : 'Enviar Alerta al Admin' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </main>
 </template>

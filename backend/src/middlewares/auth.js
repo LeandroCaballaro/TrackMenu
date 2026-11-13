@@ -19,7 +19,7 @@ export const requireSesion = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Sesión inválida o expirada' });
     }
 
-    req.auth = { db, token, usuarioId: userData.user.id };
+    req.auth = { db, token, usuarioId: userData.user.id, usuarioEmail: userData.user.email };
     next();
   } catch (err) {
     next(err);

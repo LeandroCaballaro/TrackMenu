@@ -7,8 +7,8 @@ const router = Router();
 router.post('/login', login);
 router.post('/register', register);
 router.get('/me', requireAuth, getCurrentUser);
-// Sólo pide sesión: quien la usa todavía no pertenece a una organización.
-router.post('/aceptar-invitacion', requireSesion, aceptarInvitacion);
+// Sólo piden sesión: quien las usa todavía no pertenece a una organización.
 router.post('/fundar-organizacion', requireSesion, fundarOrganizacion);
+router.post('/aceptar-invitacion', requireSesion, aceptarInvitacion);
 
 export default router;
