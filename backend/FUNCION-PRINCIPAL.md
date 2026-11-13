@@ -38,6 +38,25 @@ Todos bajo `/api/productos` y **todos privados** (`requireAuth`).
 | DELETE | `/api/productos/:id` | admin | Elimina |
 | GET | `/api/auth/me` | — | Usuario, organización y rol actual |
 
+Gestión de usuarios (etapa final):
+
+| Método | Ruta | Rol mínimo | Qué hace |
+|--------|------|-----------|----------|
+| GET | `/api/miembros` | consulta | Lista el equipo de la organización |
+| PATCH | `/api/miembros/:usuarioId` | admin | Cambia el rol de un miembro |
+| DELETE | `/api/miembros/:usuarioId` | admin | Da de baja a un miembro |
+| GET | `/api/invitaciones` | admin | Lista las invitaciones de la organización |
+| POST | `/api/invitaciones` | admin | Crea una invitación con un rol |
+| DELETE | `/api/invitaciones/:id` | admin | Revoca una invitación sin usar |
+| POST | `/api/auth/fundar-organizacion` | sesión | Crea el negocio propio |
+| POST | `/api/auth/aceptar-invitacion` | sesión | Se suma a una organización con un código |
+
+Un admin no puede cambiar su propio rol ni darse de baja a sí mismo: devuelve
+`403` y la política de la base lo impide igual. El detalle de roles y permisos
+está en [ROLES-Y-PERMISOS.md](ROLES-Y-PERMISOS.md), los casos de prueba en
+[CASOS-DE-PRUEBA.md](CASOS-DE-PRUEBA.md) y el instructivo en
+[GUIA-DE-USO.md](GUIA-DE-USO.md).
+
 Parámetros del listado:
 
 - `q` — busca por nombre (parcial, sin distinguir mayúsculas).

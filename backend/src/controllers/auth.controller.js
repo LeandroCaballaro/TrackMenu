@@ -1,22 +1,14 @@
 import { supabase, isSupabaseConfigured, userClient } from '../config/supabase.js';
 
 // Alta de la organización del usuario que se registra: queda como admin.
-// Se hace con el token del propio usuario, así RLS sigue aplicando.
-const crearOrganizacion = async (token, usuarioId, nombre) => {
-  const db = userClient(token);
-  const { data: org, error: errorOrg } = await db
-    .from('organizaciones')
-    .insert([{ nombre: nombre?.trim() || 'Mi negocio' }])
-    .select()
-    .single();
-  if (errorOrg) throw errorOrg;
+// fundar_organizacion() crea la organización y la membresía en un solo paso,
+// con el token del propio usuario, y falla si ya pertenece a alguna.
+const crearOrganizacion = async (token, nombre) => {
+  const { data, error } = await userClient(token)
+    .rpc('fundar_organizacion', { nombre_organizacion: nombre ?? '' });
 
-  const { error: errorMiembro } = await db
-    .from('miembros')
-    .insert([{ usuario_id: usuarioId, organizacion_id: org.id, rol: 'admin' }]);
-  if (errorMiembro) throw errorMiembro;
-
-  return org;
+  if (error) throw error;
+  return { id: data[0].organizacion_id, nombre: nombre?.trim() || 'Mi negocio' };
 };
 
 export const login = async (req, res, next) => {
@@ -43,17 +35,14 @@ export const login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: error.message });
     }
 
-    const db = userClient(data.session.access_token);
-    let { data: miembro } = await db
+    // No se funda una organización acá: si entrás antes de aceptar una
+    // invitación, te quedarías con un negocio propio y la invitación dejaría
+    // de servir. Sin organización, el cliente ofrece crearla o usar un código.
+    const { data: miembro } = await userClient(data.session.access_token)
       .from('miembros')
       .select('organizacion_id, rol')
       .eq('usuario_id', data.user.id)
       .maybeSingle();
-
-    if (!miembro) {
-      const org = await crearOrganizacion(data.session.access_token, data.user.id, data.user.user_metadata?.name);
-      miembro = { organizacion_id: org.id, rol: 'admin' };
-    }
 
     res.json({
       success: true,
@@ -61,8 +50,8 @@ export const login = async (req, res, next) => {
       data: {
         user: data.user,
         session: data.session,
-        organizacion_id: miembro.organizacion_id,
-        rol: miembro.rol,
+        organizacion_id: miembro?.organizacion_id ?? null,
+        rol: miembro?.rol ?? null,
       },
     });
   } catch (err) {
@@ -72,7 +61,7 @@ export const login = async (req, res, next) => {
 
 export const register = async (req, res, next) => {
   try {
-    const { email, password, name, organizacion } = req.body;
+    const { email, password, name, organizacion, codigo_invitacion } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Email y contraseña requeridos' });
@@ -99,22 +88,91 @@ export const register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: error.message });
     }
 
-    // Sin sesión (Supabase pide confirmar el email) no se puede crear la
-    // organización todavía: se crea en el primer login.
-    const org = data.session
-      ? await crearOrganizacion(data.session.access_token, data.user.id, organizacion || name)
-      : null;
+    // Sin sesión (Supabase pide confirmar el email) no se puede resolver la
+    // organización todavía: se resuelve en el primer login.
+    let org = null;
+    let rol = null;
+
+    if (data.session) {
+      if (codigo_invitacion) {
+        // Se suma a una organización existente con el rol de la invitación.
+        const { data: aceptada, error: errorInv } = await userClient(data.session.access_token)
+          .rpc('aceptar_invitacion', { codigo_invitacion });
+
+        if (errorInv) {
+          return res.status(400).json({ success: false, message: errorInv.message });
+        }
+        org = { id: aceptada[0].organizacion_id };
+        rol = aceptada[0].rol;
+      } else {
+        org = await crearOrganizacion(data.session.access_token, organizacion || name);
+        rol = 'admin';
+      }
+    }
 
     res.status(201).json({
       success: true,
       message: org
         ? 'Usuario y organización registrados exitosamente'
-        : 'Usuario registrado. Confirmá tu email e iniciá sesión para crear tu organización',
+        : 'Usuario registrado. Confirmá tu email e iniciá sesión para completar el alta',
       data: {
         user: data.user,
         session: data.session,
         organizacion: org,
+        rol,
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Para quien se registró, confirmó el email y todavía no tiene negocio.
+export const fundarOrganizacion = async (req, res, next) => {
+  try {
+    const { nombre } = req.body ?? {};
+    if (nombre !== undefined && typeof nombre !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Hay datos inválidos o incompletos',
+        errors: { nombre: 'El nombre debe ser texto' },
+      });
+    }
+
+    const { data, error } = await req.auth.db
+      .rpc('fundar_organizacion', { nombre_organizacion: nombre ?? '' });
+
+    if (error) return res.status(400).json({ success: false, message: error.message });
+
+    res.status(201).json({
+      success: true,
+      message: 'Organización creada correctamente',
+      data: { organizacion_id: data[0].organizacion_id, rol: data[0].rol },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Para un usuario ya registrado que todavía no pertenece a ninguna organización.
+export const aceptarInvitacion = async (req, res, next) => {
+  try {
+    const codigo = req.body?.codigo;
+    if (!codigo || typeof codigo !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Hay datos inválidos o incompletos',
+        errors: { codigo: 'El código de invitación es obligatorio' },
+      });
+    }
+
+    const { data, error } = await req.auth.db.rpc('aceptar_invitacion', { codigo_invitacion: codigo });
+    if (error) return res.status(400).json({ success: false, message: error.message });
+
+    res.json({
+      success: true,
+      message: 'Te sumaste a la organización correctamente',
+      data: { organizacion_id: data[0].organizacion_id, rol: data[0].rol },
     });
   } catch (err) {
     next(err);
