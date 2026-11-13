@@ -190,3 +190,24 @@ $$;
 
 REVOKE ALL ON FUNCTION public.agregar_miembro(UUID, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.agregar_miembro(UUID, TEXT) TO authenticated;
+
+-- 7. Ver el equipo con nombre y correo.
+-- auth.users no es legible con el token del usuario, así que la pantalla de
+-- usuarios mostraba UUIDs en vez de correos y no se sabía a quién se le estaba
+-- cambiando el rol. Esta función expone sólo los datos del propio equipo.
+CREATE OR REPLACE FUNCTION public.mi_equipo()
+RETURNS TABLE (usuario_id UUID, email TEXT, nombre TEXT, rol TEXT, creado_en TIMESTAMPTZ)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT m.usuario_id,
+         u.email::TEXT,
+         COALESCE(u.raw_user_meta_data->>'name', split_part(u.email::TEXT, '@', 1)),
+         m.rol,
+         m.creado_en
+  FROM public.miembros m
+  JOIN auth.users u ON u.id = m.usuario_id
+  WHERE m.organizacion_id = public.mi_organizacion()
+  ORDER BY m.creado_en;
+$$;
+
+REVOKE ALL ON FUNCTION public.mi_equipo() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.mi_equipo() TO authenticated;

@@ -1124,6 +1124,11 @@ export const adminService = {
         if (!res.ok && res.status !== 503) {
           return { success: false, message: json.message || 'No se pudo actualizar el rol.' }
         }
+        // Sin este return seguía al respaldo local y, al no encontrar ahí al
+        // usuario, avisaba "Usuario no encontrado" pese a haberlo cambiado.
+        if (res.ok) {
+          return { success: true, message: json.message || `Permiso actualizado a ${nuevoRol}.` }
+        }
       } catch {
         // Fallback local
       }

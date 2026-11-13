@@ -4,6 +4,8 @@ import { supabase } from '../config/supabase.js';
 // Solo accesible por usuarios con rol 'admin' de su respectiva organización.
 
 const ROLES_VALIDOS = ['admin', 'empleado'];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ACCIONES_AUDITORIA = ['anulacion_ticket', 'cambio_precio', 'baja_producto', 'cambio_rol', 'ajuste_stock'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const isMissingTableError = (err) =>
@@ -125,8 +127,20 @@ export const getVentas = async (req, res, next) => {
     const orgId = req.auth.organizacionId;
     const db = req.auth.db;
     const { desde, hasta, metodo_pago, estado } = req.query;
-    const pagina = Math.max(Number(req.query.pagina) || 1, 1);
-    const limite = Math.min(Number(req.query.limite) || 20, 100);
+    const pagina = Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1);
+    // sin el mínimo, un límite negativo rompía la consulta con un 500
+    const limite = Math.min(Math.max(Math.trunc(Number(req.query.limite)) || 20, 1), 100);
+
+    // una fecha que Postgres no entiende devolvía su error crudo
+    for (const [campo, valor] of [['desde', desde], ['hasta', hasta]]) {
+      if (valor && Number.isNaN(Date.parse(valor))) {
+        return res.status(400).json({
+          success: false,
+          message: 'Hay datos inválidos o incompletos',
+          errors: { [campo]: 'La fecha no tiene un formato válido (AAAA-MM-DD)' },
+        });
+      }
+    }
 
     let query = db
       .from('ventas')
@@ -143,6 +157,9 @@ export const getVentas = async (req, res, next) => {
       .order('created_at', { ascending: false })
       .range(desdeOffset, desdeOffset + limite - 1);
 
+    if (error && error.code === 'PGRST103') {
+      return res.json({ success: true, total: 0, pagina, limite, data: [] });
+    }
     if (error) throw error;
 
     res.json({
@@ -160,9 +177,13 @@ export const getVentas = async (req, res, next) => {
 export const anularVenta = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { motivo } = req.body;
+    const { motivo } = req.body ?? {};
     const orgId = req.auth.organizacionId;
     const db = req.auth.db;
+
+    if (!UUID.test(String(id))) {
+      return res.status(404).json({ success: false, message: 'Ticket de venta no encontrado' });
+    }
 
     if (!motivo || String(motivo).trim().length < 5) {
       return res.status(400).json({
@@ -261,17 +282,40 @@ export const getAuditoria = async (req, res, next) => {
     const orgId = req.auth.organizacionId;
     const db = req.auth.db;
 
-    const { data, error } = await db
-      .from('auditoria_logs')
-      .select('*')
-      .eq('organizacion_id', orgId)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    // antes ignoraba limite, pagina y accion: devolvía siempre los últimos 50
+    const limite = Math.min(Math.max(Math.trunc(Number(req.query.limite)) || 50, 1), 200);
+    const pagina = Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1);
+    const { accion } = req.query;
 
+    if (accion && !ACCIONES_AUDITORIA.includes(accion)) {
+      return res.status(400).json({
+        success: false,
+        message: `accion debe ser una de: ${ACCIONES_AUDITORIA.join(', ')}`,
+      });
+    }
+
+    let query = db
+      .from('auditoria_logs')
+      .select('*', { count: 'exact' })
+      .eq('organizacion_id', orgId);
+
+    if (accion) query = query.eq('accion', accion);
+
+    const offset = (pagina - 1) * limite;
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limite - 1);
+
+    if (error && error.code === 'PGRST103') {
+      return res.json({ success: true, total: 0, pagina, limite, data: [] });
+    }
     if (error) throw error;
 
     res.json({
       success: true,
+      total: count,
+      pagina,
+      limite,
       data: data || [],
     });
   } catch (err) {
@@ -284,10 +328,9 @@ export const getUsuarios = async (req, res, next) => {
     const orgId = req.auth.organizacionId;
     const db = req.auth.db;
 
-    const { data, error } = await db
-      .from('miembros')
-      .select('usuario_id, rol, creado_en')
-      .eq('organizacion_id', orgId);
+    // mi_equipo() agrega nombre y correo: sin eso la pantalla mostraba UUIDs
+    // y no se sabía a quién se le estaba cambiando el rol.
+    const { data, error } = await db.rpc('mi_equipo');
 
     if (error && !isMissingTableError(error)) throw error;
 
@@ -410,6 +453,10 @@ export const cambiarRolUsuario = async (req, res, next) => {
       });
     }
 
+    if (!UUID.test(String(usuario_id ?? ''))) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado en tu organización' });
+    }
+
     if (usuario_id === req.auth.usuarioId && nuevo_rol !== 'admin') {
       return res.status(400).json({
         success: false,
@@ -417,13 +464,21 @@ export const cambiarRolUsuario = async (req, res, next) => {
       });
     }
 
-    const { error: errUpdate } = await db
+    // .select() devuelve las filas tocadas: sin él, cambiar el rol de alguien
+    // que no existe —o de otra organización— respondía éxito y dejaba un
+    // registro de auditoría de algo que nunca pasó.
+    const { data: filas, error: errUpdate } = await db
       .from('miembros')
       .update({ rol: nuevo_rol })
       .eq('usuario_id', usuario_id)
-      .eq('organizacion_id', orgId);
+      .eq('organizacion_id', orgId)
+      .select();
 
     if (errUpdate && !isMissingTableError(errUpdate)) throw errUpdate;
+
+    if (!errUpdate && (!filas || filas.length === 0)) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado en tu organización' });
+    }
 
     // Log de auditoría
     const { error: errAudit } = await db.from('auditoria_logs').insert([

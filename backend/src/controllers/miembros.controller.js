@@ -10,11 +10,9 @@ const noEncontrado = (res, que = 'Miembro') =>
 
 export const listarMiembros = async (req, res, next) => {
   try {
-    const { data, error } = await req.auth.db
-      .from('miembros')
-      .select('usuario_id, rol, creado_en')
-      .eq('organizacion_id', req.auth.organizacionId)
-      .order('creado_en', { ascending: true });
+    // mi_equipo() trae también nombre y correo, que auth.users no deja leer
+    // directamente con el token del usuario.
+    const { data, error } = await req.auth.db.rpc('mi_equipo');
 
     if (error) throw error;
     res.json({

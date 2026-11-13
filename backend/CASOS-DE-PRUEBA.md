@@ -26,6 +26,10 @@ cd backend && npm run test:e2e
 cd backend && npm run test:e2e:miembros
 ```
 
+```bash
+cd backend && npm run test:e2e:admin
+```
+
 Los dos últimos necesitan el backend levantado (`npm run dev`) y las variables
 de entorno que indica `FUNCION-PRINCIPAL.md`.
 
@@ -122,3 +126,20 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | G1 | Abrir el sistema en un celular (o el navegador a 375 px) | Se lee y se puede operar, sin scroll horizontal |
 | G2 | Revisar los mensajes de éxito y error | Se entienden y están en castellano |
 | G3 | Recorrer el formulario con el teclado | Se llega a todos los campos y al botón de guardar |
+
+
+## H. Módulo de administración
+
+| # | Pasos | Resultado esperado |
+|---|---|---|
+| H1 🤖 | Entrar como `empleado` o `consulta` a KPIs, ventas, auditoría o usuarios | `403` en las cuatro |
+| H2 🤖 | Cambiar el rol de un usuario que no existe | `404`, no un éxito falso |
+| H3 🤖 | Cambiar el rol pasando un id que no es UUID | `404`, no el error crudo de Postgres |
+| H4 🤖 | Como admin de otra organización, cambiar el rol de este equipo | `404` |
+| H5 🤖 | Comprobar la auditoría después de un cambio que falló | No quedó registrado |
+| H6 🤖 | Hacer un cambio de rol real | `200` y queda una entrada en la auditoría |
+| H7 🤖 | `?limite=-5`, `?pagina=9999`, `?desde=noesunafecha` en ventas | Se acota, página vacía y `400` con el campo |
+| H8 🤖 | `?limite=1` y `?accion=inventada` en auditoría | Respeta el límite; `400` con la lista de acciones |
+| H9 🤖 | Anular una venta con id inválido, inexistente o sin motivo | `404`, `404` y `400` |
+| H10 🤖 | Crear un usuario sin datos, con email mal formado o contraseña corta | `400` en los tres |
+| H11 | Abrir la pantalla de usuarios | Se ven correos y nombres, no UUIDs |
