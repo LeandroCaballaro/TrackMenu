@@ -32,14 +32,35 @@ const api = async (metodo, ruta, { token, body } = {}) => {
   return { status: res.status, json: await res.json().catch(() => ({})) };
 };
 
+// Con EMAIL_A/PASSWORD_A y EMAIL_B/PASSWORD_B en el entorno usa cuentas ya
+// creadas (sirve cuando Supabase exige confirmar el email); si no, registra dos
+// cuentas nuevas.
 const registrar = async (etiqueta) => {
-  const email = `e2e_${etiqueta}_${sello}@trackmenu.test`;
+  const sufijo = etiqueta.toUpperCase();
+  const email = process.env[`EMAIL_${sufijo}`] || `e2e_${etiqueta}_${sello}@example.org`;
+  const password = process.env[`PASSWORD_${sufijo}`] || 'Prueba12345!';
+
+  if (process.env[`EMAIL_${sufijo}`]) {
+    const r = await api('POST', '/auth/login', { body: { email, password } });
+    if (r.status !== 200) {
+      console.error(`No se pudo iniciar sesión con ${email}:`, r.status, r.json);
+      process.exit(1);
+    }
+    return {
+      email,
+      token: r.json.data.session.access_token,
+      org: { id: r.json.data.organizacion_id },
+    };
+  }
+
   const r = await api('POST', '/auth/register', {
-    body: { email, password: 'Prueba12345!', name: etiqueta, organizacion: `Negocio ${etiqueta}` },
+    body: { email, password, name: etiqueta, organizacion: `Negocio ${etiqueta}` },
   });
   if (r.status !== 201 || !r.json?.data?.session) {
     console.error(`No se pudo registrar ${email}:`, r.status, r.json);
-    console.error('Si Supabase exige confirmar el email, desactivá "Confirm email" en Auth > Providers.');
+    console.error('Si Supabase exige confirmar el email, desactivá "Confirm email" en');
+    console.error('Authentication > Sign In / Providers, o pasá cuentas ya creadas con');
+    console.error('EMAIL_A/PASSWORD_A y EMAIL_B/PASSWORD_B.');
     process.exit(1);
   }
   return { email, token: r.json.data.session.access_token, org: r.json.data.organizacion };
@@ -64,7 +85,10 @@ const main = async () => {
   ok((await api('GET', '/productos')).status === 401, 'sin token: 401 en /productos');
   ok((await api('GET', '/productos', { token: 'token-vencido' })).status === 401, 'token inválido/vencido: 401');
 
-  // --- Alta
+  // --- Alta (se comparan deltas, por si las cuentas ya tenían productos)
+  const baseA = (await api('GET', '/productos', { token: a.token })).json.total;
+  const baseB = (await api('GET', '/productos', { token: b.token })).json.total;
+
   const alta = await api('POST', '/productos', {
     token: a.token,
     body: { nombre: 'Milanesa napolitana', precio: 9500, stock: 12, descripcion: 'Con papas' },
@@ -72,8 +96,10 @@ const main = async () => {
   ok(alta.status === 201 && alta.json.success, `alta OK: ${alta.json.message}`);
   const id = alta.json?.data?.id;
 
-  await api('POST', '/productos', { token: a.token, body: { nombre: 'Agua mineral', precio: 1200, stock: 50 } });
-  await api('POST', '/productos', { token: a.token, body: { nombre: 'Flan casero', precio: 3000, stock: 5 } });
+  const extras = [
+    (await api('POST', '/productos', { token: a.token, body: { nombre: 'Agua mineral', precio: 1200, stock: 50 } })).json.data.id,
+    (await api('POST', '/productos', { token: a.token, body: { nombre: 'Flan casero', precio: 3000, stock: 5 } })).json.data.id,
+  ];
 
   // --- Alta con datos faltantes / mal formato
   const sinDatos = await api('POST', '/productos', { token: a.token, body: { descripcion: 'sin nombre' } });
@@ -84,10 +110,10 @@ const main = async () => {
 
   // --- Consulta, búsqueda y orden
   const lista = await api('GET', '/productos', { token: a.token });
-  ok(lista.json.total === 3, `listado de la organización: ${lista.json.total} productos`);
+  ok(lista.json.total === baseA + 3, `listado de la organización: +3 productos (${lista.json.total})`);
 
   const busqueda = await api('GET', '/productos?q=mila', { token: a.token });
-  ok(busqueda.json.total === 1 && busqueda.json.data[0].nombre.includes('Milanesa'), 'búsqueda por nombre');
+  ok(busqueda.json.data.every((p) => /mila/i.test(p.nombre)) && busqueda.json.total >= 1, 'búsqueda por nombre');
 
   const orden = await api('GET', '/productos?orden=precio&dir=asc', { token: a.token });
   const precios = orden.json.data.map((p) => Number(p.precio));
@@ -107,7 +133,7 @@ const main = async () => {
     'modificación sin campos: 400');
 
   // --- Aislamiento entre organizaciones
-  ok((await api('GET', '/productos', { token: b.token })).json.total === 0,
+  ok((await api('GET', '/productos', { token: b.token })).json.total === baseB,
     'la otra organización no ve estos productos');
   ok((await api('GET', `/productos/${id}`, { token: b.token })).status === 404,
     'la otra organización no puede consultar el producto por id');
@@ -130,6 +156,11 @@ const main = async () => {
   } else {
     console.log('… prueba de roles empleado/consulta omitida (definí TOKEN_CONSULTA)');
   }
+
+  // Limpieza: el script no deja sus productos dando vueltas en la base.
+  for (const id of extras) await api('DELETE', `/productos/${id}`, { token: a.token });
+  const { json: final } = await api('GET', '/productos?limite=100', { token: a.token });
+  ok(final.total === baseA, `limpieza: la organización queda con ${final.total} productos (empezó con ${baseA})`);
 
   console.log(fallas === 0 ? '\nRecorrido completo sin fallas' : `\n${fallas} verificación(es) fallaron`);
   process.exit(fallas === 0 ? 0 : 1);

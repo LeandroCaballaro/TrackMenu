@@ -56,6 +56,23 @@ const form = ref({
 })
 const erroresForm = ref({})
 
+// canEdit vive en authService, no en authState: authState.canEdit era
+// undefined y escondía el alta y la edición hasta para el administrador.
+const puedeEditar = computed(() => ['admin', 'empleado'].includes(authState.rol))
+
+// El dueño necesita este enlace para imprimir el QR de las mesas.
+const enlaceCarta = computed(() => `${location.origin}/carta/${authState.organizacion?.id ?? ''}`)
+const enlaceCopiado = ref(false)
+const copiarEnlaceCarta = async () => {
+  try {
+    await navigator.clipboard.writeText(enlaceCarta.value)
+    enlaceCopiado.value = true
+    setTimeout(() => { enlaceCopiado.value = false }, 2000)
+  } catch {
+    // sin permiso de portapapeles queda el enlace a la vista para copiarlo a mano
+  }
+}
+
 // Modal de confirmación para eliminar
 const modalEliminarAbierto = ref(false)
 const productoAEliminar = ref(null)
@@ -307,10 +324,19 @@ onMounted(() => {
           <p class="mt-1 text-xs text-stone-400">
             Administrá los precios, stock y disponibilidad de tu restaurante con control de permisos por rol.
           </p>
+          <p v-if="authState.organizacion?.id" class="mt-2 text-[11px] text-stone-400">
+            Carta para el QR de las mesas:
+            <a :href="enlaceCarta" target="_blank" rel="noopener"
+              class="font-semibold text-[#e58a4e] underline underline-offset-2">{{ enlaceCarta }}</a>
+            <button type="button" @click="copiarEnlaceCarta"
+              class="ml-2 rounded-lg border border-stone-700 px-2 py-0.5 font-semibold text-stone-300 hover:bg-stone-800">
+              {{ enlaceCopiado ? 'Copiado' : 'Copiar' }}
+            </button>
+          </p>
         </div>
 
         <!-- Botón Crear Nuevo Registro -->
-        <div>
+        <div v-if="puedeEditar">
           <button type="button" @click="abrirNuevoProducto"
             class="flex items-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
             <Plus :size="16" />
@@ -469,7 +495,7 @@ onMounted(() => {
                 <td class="py-3 px-4 text-right">
                   <div class="flex items-center justify-end gap-1.5">
                     <!-- Botón Modificar (Admin y Empleado) -->
-                    <button type="button"
+                    <button v-if="puedeEditar" type="button"
                       @click="abrirEditarProducto(producto)"
                       class="flex items-center gap-1 rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-1.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white"
                       title="Modificar registro">

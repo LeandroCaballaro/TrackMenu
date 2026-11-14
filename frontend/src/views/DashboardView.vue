@@ -67,7 +67,7 @@ interface UsuarioMiembro {
   usuario_id: string
   nombre: string
   email: string
-  rol: 'admin' | 'empleado'
+  rol: 'admin' | 'empleado' | 'consulta'
   creado_en?: string | null
 }
 
@@ -87,8 +87,17 @@ const ventas = ref<Venta[]>([])
 const auditoriaLogs = ref<AuditLog[]>([])
 const usuariosEquipo = ref<UsuarioMiembro[]>([])
 
+// La auditoría guarda el id del usuario afectado: mostrarlo tal cual no le
+// dice nada a nadie, así que se resuelve contra el equipo ya cargado.
+const nombrarUsuario = (id?: string) => {
+  if (!id) return '—'
+  const u = usuariosEquipo.value.find((x) => x.usuario_id === id)
+  return u?.email || u?.nombre || id
+}
+
 // Gestión de usuarios (solo Admin)
 const opcionesRol = [
+  { value: 'consulta', label: 'Consulta (Solo lectura)' },
   { value: 'empleado', label: 'Personal / Cajero (Mesas y avisos)' },
   { value: 'admin', label: 'Administrador (Control total)' },
 ]
@@ -99,7 +108,7 @@ const nuevoUsuario = ref({
   nombre: '',
   email: '',
   password: '',
-  rol: 'empleado' as 'admin' | 'empleado',
+  rol: 'empleado' as 'admin' | 'empleado' | 'consulta',
 })
 
 // Filtros de ventas
@@ -635,7 +644,7 @@ onMounted(() => {
                   ({{ log.detalles?.email }}) con rol <strong class="text-emerald-300">{{ log.detalles?.rol }}</strong>.
                 </span>
                 <span v-else-if="log.accion === 'cambio_rol'">
-                  Se actualizaron los permisos de <strong>{{ log.detalles?.nombre || log.detalles?.usuario_afectado }}</strong>
+                  Se actualizaron los permisos de <strong>{{ log.detalles?.nombre || nombrarUsuario(log.detalles?.usuario_afectado) }}</strong>
                   a <strong class="text-purple-300">{{ log.detalles?.nuevo_rol }}</strong>.
                 </span>
                 <span v-else>
