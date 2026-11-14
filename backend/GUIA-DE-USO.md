@@ -54,6 +54,20 @@ menú y que un rol de sólo lectura no puede tocar nada.
 Si falta un dato o el formato no es el esperado, el sistema lo dice campo por
 campo y no guarda nada.
 
+## La carta por QR
+
+En **Platos y Precios** aparece el enlace de la carta de tu negocio, con un
+botón para copiarlo. Es el que va en el QR de las mesas:
+
+```
+https://TU-DOMINIO/carta/<id de tu organización>?mesa=5
+```
+
+Quien lo abre ve el menú sin iniciar sesión: nombre, descripción, precio e
+imagen de los productos **activos**. Los inactivos no aparecen, y el stock, las
+ventas y las cuentas del equipo no se exponen. El pedido lo sigue tomando el
+personal desde la carta interna.
+
 ## Sumar a alguien del equipo
 
 1. Entrar como administrador.

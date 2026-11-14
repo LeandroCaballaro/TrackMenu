@@ -91,11 +91,13 @@ DROP POLICY IF EXISTS "Usuarios modifican sus productos" ON public.productos;
 DROP POLICY IF EXISTS "Usuarios eliminan sus productos" ON public.productos;
 
 -- Los tres roles leen.
+DROP POLICY IF EXISTS "Leer productos de mi organizacion" ON public.productos;
 CREATE POLICY "Leer productos de mi organizacion" ON public.productos
   FOR SELECT TO authenticated
   USING (organizacion_id = public.mi_organizacion());
 
 -- admin y empleado crean y modifican.
+DROP POLICY IF EXISTS "Crear productos de mi organizacion" ON public.productos;
 CREATE POLICY "Crear productos de mi organizacion" ON public.productos
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -103,12 +105,14 @@ CREATE POLICY "Crear productos de mi organizacion" ON public.productos
     AND public.mi_rol() IN ('admin', 'empleado')
   );
 
+DROP POLICY IF EXISTS "Modificar productos de mi organizacion" ON public.productos;
 CREATE POLICY "Modificar productos de mi organizacion" ON public.productos
   FOR UPDATE TO authenticated
   USING (organizacion_id = public.mi_organizacion() AND public.mi_rol() IN ('admin', 'empleado'))
   WITH CHECK (organizacion_id = public.mi_organizacion() AND public.mi_rol() IN ('admin', 'empleado'));
 
 -- Sólo admin elimina.
+DROP POLICY IF EXISTS "Eliminar productos de mi organizacion" ON public.productos;
 CREATE POLICY "Eliminar productos de mi organizacion" ON public.productos
   FOR DELETE TO authenticated
   USING (organizacion_id = public.mi_organizacion() AND public.mi_rol() = 'admin');

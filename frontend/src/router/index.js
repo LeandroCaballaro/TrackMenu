@@ -12,6 +12,12 @@ const router = createRouter({
     { path: '/login', name: 'login', component: LoginView },
     { path: '/registro', redirect: '/' },
     { path: '/inicio', name: 'inicio', component: InicioView },
+    // Pública a propósito: es la carta que abre el cliente desde el QR.
+    {
+      path: '/carta/:organizacion',
+      name: 'carta-publica',
+      component: () => import('@/views/CartaPublicaView.vue'),
+    },
     {
       path: '/productos',
       name: 'productos',

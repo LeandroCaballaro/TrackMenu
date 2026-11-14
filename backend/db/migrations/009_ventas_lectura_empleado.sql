@@ -14,6 +14,7 @@
 -- requireRole('admin') en el backend).
 
 DROP POLICY IF EXISTS "Admin lee ventas de su organizacion" ON public.ventas;
+DROP POLICY IF EXISTS "Admin y empleado leen ventas de su organizacion" ON public.ventas;
 CREATE POLICY "Admin y empleado leen ventas de su organizacion" ON public.ventas
   FOR SELECT TO authenticated
   USING (
@@ -22,6 +23,7 @@ CREATE POLICY "Admin y empleado leen ventas de su organizacion" ON public.ventas
   );
 
 DROP POLICY IF EXISTS "Leer detalle ventas asociadas a mi organizacion" ON public.detalle_ventas;
+DROP POLICY IF EXISTS "Leer detalle de ventas de mi organizacion" ON public.detalle_ventas;
 CREATE POLICY "Leer detalle de ventas de mi organizacion" ON public.detalle_ventas
   FOR SELECT TO authenticated
   USING (EXISTS (

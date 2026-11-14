@@ -38,6 +38,10 @@ cd backend && npm run test:e2e:ventas
 cd backend && npm run test:e2e:comandas
 ```
 
+```bash
+cd backend && npm run test:e2e:publico
+```
+
 Los dos últimos necesitan el backend levantado (`npm run dev`) y las variables
 de entorno que indica `FUNCION-PRINCIPAL.md`.
 
@@ -183,3 +187,15 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | J7 | Elegir una mesa ocupada en el mapa y cobrarla | "Cobrado $X en la mesa N"; esa mesa queda libre y las otras siguen ocupadas |
 | J8 🤖 | Cancelar una comanda; cancelarla de nuevo | `200` y después `404` |
 | J9 🤖 | Ver las comandas desde otra organización | No aparecen |
+
+
+## K. Carta pública (QR)
+
+| # | Pasos | Resultado esperado |
+|---|---|---|
+| K1 | Abrir `/carta/<id de la organización>?mesa=5` sin sesión | Se ve el menú del negocio y el número de mesa |
+| K2 🤖 | Comparar con el catálogo | Están los activos; los inactivos no aparecen |
+| K3 🤖 | Mirar los campos que devuelve | Sólo nombre, descripción, precio e imagen: ni stock ni usuarios |
+| K4 🤖 | Abrir con un id inválido o inexistente | `404` con un mensaje claro |
+| K5 🤖 | Pedir `/productos`, `/comandas`, `/miembros` o `/admin/ventas` sin sesión | Siguen en `401` |
+| K6 | Copiar el enlace desde la pantalla de productos | Es el que va en el QR de las mesas |
