@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
-import { authState, productosService } from '@/services/api'
+import { authState, productosService, ventasService } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus, ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft,
 } from 'lucide-vue-next'
@@ -114,7 +114,7 @@ const cart = ref([])
 const selected = ref(null)
 const orderSent = ref(false)
 const mobileCartOpen = ref(false)
-const occupied = ref([4, 7])
+const occupied = ref([])
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
@@ -182,54 +182,75 @@ const removeAllFromCart = (id) => {
   }
 }
 
+// La comanda que ve el cajero salía escrita a mano en la plantilla (siempre
+// "1x Burger clásica + 1x Papas, $2.840"), así que no tenía relación con lo que
+// el cliente había pedido ni con lo que después se cobraba.
+const comandas = ref({})
+const MESA_DEL_CLIENTE = 4
+
 const sendOrder = () => {
+  if (cartItems.value.length === 0) return
+  comandas.value = {
+    ...comandas.value,
+    [MESA_DEL_CLIENTE]: cartItems.value.map((item) => ({
+      producto_id: item.product.id,
+      nombre: item.product.name,
+      cantidad: item.qty,
+      precio: item.product.price,
+    })),
+  }
   orderSent.value = true
-  if (!occupied.value.includes(4)) {
-    occupied.value.push(4)
+  if (!occupied.value.includes(MESA_DEL_CLIENTE)) {
+    occupied.value.push(MESA_DEL_CLIENTE)
   }
 }
+
+const comandaActiva = computed(() => comandas.value[selectedTable.value] || [])
+const totalComanda = computed(() =>
+  comandaActiva.value.reduce((acc, linea) => acc + linea.precio * linea.cantidad, 0),
+)
 
 const selectCategory = (item) => {
   category.value = item
 }
 
-const freeTable = () => {
-  // Registra la venta y comanda liquidada para que impacte en tiempo real en el Dashboard
-  try {
-    const dbRaw = localStorage.getItem('trackmenu_saas_db')
-    if (dbRaw) {
-      const db = JSON.parse(dbRaw)
-      if (!db.ventas) db.ventas = []
-      const metodo = payment.value.toLowerCase().includes('transf') ? 'transferencia_qr' : payment.value.toLowerCase()
-      const nuevaVentaId = 'vnt_' + Date.now().toString().slice(-6)
-      
-      db.ventas.unshift({
-        id: nuevaVentaId,
-        organizacion_id: authState.organizacion?.id || 'org_demo_1',
-        mesa_numero: selectedTable.value,
-        total: 2840,
-        metodo_pago: metodo,
-        estado: 'completada',
-        usuario_id: authState.user?.id || 'usr_empleado_1',
-        created_at: new Date().toISOString(),
-        anulado_en: null,
-        anulado_por: null,
-        motivo_anulacion: null,
-      })
+const cobrando = ref(false)
+const avisoCobro = ref('')
 
-      if (!db.detalle_ventas) db.detalle_ventas = []
-      db.detalle_ventas.push(
-        { id: 'det_' + Date.now() + '_1', venta_id: nuevaVentaId, producto_id: 'prod_1', cantidad: 1, precio_unitario: 1890, subtotal: 1890 },
-        { id: 'det_' + Date.now() + '_2', venta_id: nuevaVentaId, producto_id: 'prod_2', cantidad: 1, precio_unitario: 950, subtotal: 950 }
-      )
+// Esto escribía la venta en el localStorage del navegador, con un total fijo de
+// $2840 y dos productos inventados: el panel de ventas y los KPIs nunca veían
+// nada y no había ningún ticket que anular.
+const freeTable = async () => {
+  if (cobrando.value) return
+  avisoCobro.value = ''
 
-      localStorage.setItem('trackmenu_saas_db', JSON.stringify(db))
-    }
-  } catch (err) {
-    console.error('Error registrando venta al liberar mesa:', err)
+  const items = comandaActiva.value.map((linea) => ({ producto_id: linea.producto_id, cantidad: linea.cantidad }))
+  if (items.length === 0) {
+    avisoCobro.value = 'No hay nada para cobrar en esta mesa.'
+    return
   }
 
+  cobrando.value = true
+  const res = await ventasService.cobrarMesa({
+    mesa_numero: selectedTable.value,
+    metodo_pago: payment.value,
+    items,
+  })
+  cobrando.value = false
+
+  if (!res.success) {
+    avisoCobro.value = res.message || 'No se pudo registrar la venta.'
+    return
+  }
+
+  avisoCobro.value = `Cobrado $${Number(res.data.total).toLocaleString('es-AR')} en la mesa ${selectedTable.value}.`
+  const restantes = { ...comandas.value }
+  delete restantes[selectedTable.value]
+  comandas.value = restantes
+  cart.value = []
+  orderSent.value = false
   occupied.value = occupied.value.filter((table) => table !== selectedTable.value)
+  await cargarCarta()
 }
 </script>
 
@@ -476,23 +497,22 @@ const freeTable = () => {
             <div class="mt-6 rounded-2xl border border-white/5 bg-[#110d0b] p-4">
               <div class="flex items-center justify-between text-xs text-stone-400">
                 <span class="flex items-center gap-1.5">
-                  <Clock3 :size="14" class="text-stone-500" /> Ingreso 20:14
+                  <Clock3 :size="14" class="text-stone-500" /> Mesa {{ selectedTable }}
                 </span>
-                <span class="font-medium text-stone-400">Pedido #104</span>
+                <span class="font-medium text-stone-400">{{ comandaActiva.length }} ítem(s)</span>
               </div>
               <div class="mt-4 space-y-3">
-                <div class="flex justify-between text-sm">
-                  <span class="text-stone-200"><b class="text-white">1x</b> Burger clásica</span>
-                  <span class="font-bold text-white">{{ formatPrice(1890) }}</span>
+                <div v-for="linea in comandaActiva" :key="linea.producto_id" class="flex justify-between text-sm">
+                  <span class="text-stone-200"><b class="text-white">{{ linea.cantidad }}x</b> {{ linea.nombre }}</span>
+                  <span class="font-bold text-white">{{ formatPrice(linea.precio * linea.cantidad) }}</span>
                 </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-stone-200"><b class="text-white">1x</b> Papas a la piedra</span>
-                  <span class="font-bold text-white">{{ formatPrice(950) }}</span>
-                </div>
+                <p v-if="comandaActiva.length === 0" class="text-sm text-stone-400">
+                  Esta mesa no tiene ninguna comanda enviada todavía.
+                </p>
               </div>
               <div class="mt-4 flex justify-between border-t border-stone-800/80 pt-3 text-base font-bold">
                 <span class="text-stone-300">Total</span>
-                <span class="text-white text-lg">{{ formatPrice(2840) }}</span>
+                <span class="text-white text-lg">{{ formatPrice(totalComanda) }}</span>
               </div>
             </div>
 
@@ -505,11 +525,16 @@ const freeTable = () => {
               />
             </div>
 
-            <button type="button" @click="freeTable"
-              class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] shadow-lg shadow-[#e58a4e]/10 transition hover:bg-[#ee975e] active:scale-[0.99]">
-              <CircleDollarSign :size="17" /> Cobrar y liberar mesa
+            <button type="button" @click="freeTable" :disabled="cobrando"
+              class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] shadow-lg shadow-[#e58a4e]/10 transition hover:bg-[#ee975e] active:scale-[0.99] disabled:opacity-60">
+              <CircleDollarSign :size="17" /> {{ cobrando ? 'Cobrando…' : 'Cobrar y liberar mesa' }}
             </button>
+
           </template>
+
+          <p v-if="avisoCobro" role="status" class="mt-4 text-center text-xs font-semibold text-stone-300">
+            {{ avisoCobro }}
+          </p>
 
           <div v-else class="mt-10 text-center">
             <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#204933] bg-[#163223] text-[#4ade80]">

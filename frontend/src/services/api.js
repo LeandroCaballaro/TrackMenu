@@ -1188,3 +1188,40 @@ export const adminService = {
 }
 
 
+
+// Cobro de mesa. El respaldo local existe sólo para no perder la comanda si el
+// servidor no responde; el aviso de "sin conexión" ya lo muestra la pantalla.
+export const ventasService = {
+  async cobrarMesa({ mesa_numero, metodo_pago, items }) {
+    if (!['admin', 'empleado'].includes(authState.rol)) {
+      return { success: false, message: 'Acceso denegado: tu rol no puede cobrar mesas.' }
+    }
+
+    // La pantalla ofrece "Transferencia"; la base guarda 'transferencia_qr'.
+    const metodo = String(metodo_pago || '').toLowerCase().includes('transf')
+      ? 'transferencia_qr'
+      : String(metodo_pago || '').toLowerCase()
+
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('La venta no se pudo registrar') }
+    }
+
+    try {
+      const res = await fetch('/api/ventas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ mesa_numero, metodo_pago: metodo, items }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        return { success: true, message: json.message, data: json.data }
+      }
+      return { success: false, message: json.message, errors: json.errors }
+    } catch {
+      return { success: false, message: avisoLocal('La venta no se pudo registrar') }
+    }
+  },
+}

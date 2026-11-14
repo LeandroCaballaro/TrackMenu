@@ -6,6 +6,7 @@ import ordersRoutes from './orders.routes.js';
 import authRoutes from './auth.routes.js';
 import miembrosRoutes, { invitacionesRouter } from './miembros.routes.js';
 import adminRoutes from './admin.routes.js';
+import ventasRoutes from './ventas.routes.js';
 
 const apiRouter = Router();
 
@@ -21,5 +22,6 @@ apiRouter.use('/auth', authRoutes);
 apiRouter.use('/miembros', miembrosRoutes);
 apiRouter.use('/invitaciones', invitacionesRouter);
 apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/ventas', ventasRoutes);
 
 export default apiRouter;

@@ -11,7 +11,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "node tests/e2e.productos.mjs",
     "test:e2e:miembros": "node tests/e2e.miembros.mjs",
-    "test:e2e:admin": "node tests/e2e.admin.mjs"
+    "test:e2e:admin": "node tests/e2e.admin.mjs",
+    "test:e2e:ventas": "node tests/e2e.ventas.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

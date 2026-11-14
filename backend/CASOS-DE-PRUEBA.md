@@ -30,6 +30,10 @@ cd backend && npm run test:e2e:miembros
 cd backend && npm run test:e2e:admin
 ```
 
+```bash
+cd backend && npm run test:e2e:ventas
+```
+
 Los dos últimos necesitan el backend levantado (`npm run dev`) y las variables
 de entorno que indica `FUNCION-PRINCIPAL.md`.
 
@@ -143,3 +147,20 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | H9 🤖 | Anular una venta con id inválido, inexistente o sin motivo | `404`, `404` y `400` |
 | H10 🤖 | Crear un usuario sin datos, con email mal formado o contraseña corta | `400` en los tres |
 | H11 | Abrir la pantalla de usuarios | Se ven correos y nombres, no UUIDs |
+
+
+## I. Cobro de mesas
+
+| # | Pasos | Resultado esperado |
+|---|---|---|
+| I1 | Desde la carta, agregar productos y "Enviar pedido a cocina" | La mesa queda ocupada y el panel muestra esa comanda, no una fija |
+| I2 | En Control de Mesas, "Cobrar y liberar mesa" | "Cobrado $X en la mesa N", la mesa queda libre y la venta está en la base |
+| I3 🤖 | Cobrar como `consulta`, o sin sesión | `403` y `401` |
+| I4 🤖 | Cobrar sin datos, con método de pago inexistente, mesa 0 o comanda vacía | `400` con el detalle por campo |
+| I5 🤖 | Cobrar un producto inexistente o de otra organización | `404` |
+| I6 🤖 | Cobrar más unidades que el stock | `409` indicando el producto |
+| I7 🤖 | Cobrar una comanda válida | `201`, total calculado con los precios de la base y stock descontado |
+| I8 🤖 | Ver el ticket en el panel de ventas | Aparece con sus líneas; la otra organización no lo ve |
+| I9 🤖 | Anular como empleado / como admin | `403` y `200` con stock restituido |
+| I10 🤖 | Anular dos veces el mismo ticket | `400` |
+| I11 🤖 | Revisar la auditoría | Queda la anulación registrada |
