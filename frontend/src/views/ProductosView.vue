@@ -7,7 +7,6 @@ import {
   Bell, BellRing
 } from 'lucide-vue-next'
 import logoIcono from '@/assets/3.png'
-import NavigationHeader from '@/components/NavigationHeader.vue'
 import Combobox from '@/components/Combobox.vue'
 import { authState, authService, productosService } from '@/services/api'
 
@@ -265,7 +264,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="min-h-screen overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+  <main class="min-h-dvh overflow-x-clip bg-[#0c0a09] text-[#f5f2eb]">
     <!-- Notificación Toast sobria -->
     <transition
       enter-active-class="transform transition ease-out duration-200"
@@ -293,7 +292,7 @@ onMounted(() => {
     <!-- Contenido Principal del Módulo -->
     <div class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:px-8">
       <!-- Encabezado de la Sección -->
-      <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="mb-5 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div class="flex items-center gap-2">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Catálogo de Menú</p>
@@ -301,18 +300,18 @@ onMounted(() => {
               {{ totalProductos }} {{ totalProductos === 1 ? 'producto' : 'productos' }}
             </span>
           </div>
-          <h1 class="mt-1 font-serif text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          <h1 class="mt-1 font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
             Gestión de Productos
           </h1>
-          <p class="mt-1 text-xs text-stone-400">
-            Administrá los precios, stock y disponibilidad de tu restaurante con control de permisos por rol.
+          <p class="hidden sm:block mt-1 text-xs text-stone-400">
+            Precios, stock disponible y visibilidad de cada plato en la carta.
           </p>
         </div>
 
         <!-- Botón Crear Nuevo Registro -->
-        <div>
+        <div class="w-full sm:w-auto">
           <button type="button" @click="abrirNuevoProducto"
-            class="flex items-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
+            class="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
             <Plus :size="16" />
             <span>Nuevo Producto</span>
           </button>
@@ -391,7 +390,7 @@ onMounted(() => {
           <p class="mt-1 text-xs text-stone-400 max-w-sm mx-auto">
             {{ busqueda || filtroActivo ? 'No hay productos que coincidan con la búsqueda o filtro aplicado.' : 'Aún no registraste productos para esta organización.' }}
           </p>
-          <div class="mt-4 flex items-center justify-center gap-2">
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
             <button v-if="busqueda || filtroActivo" type="button" @click="busqueda = ''; filtroActivo = ''"
               class="rounded-full border border-stone-800 bg-[#110d0b] px-4 py-2 text-xs font-semibold text-stone-300 hover:text-white transition">
               Limpiar filtros
@@ -403,9 +402,101 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Tabla de Datos -->
-        <div v-else class="overflow-x-auto">
-          <table class="w-full min-w-[700px] text-left text-xs border-collapse">
+        <!-- Listado Responsive (Tarjetas en móvil + Tabla en tablet/desktop) -->
+        <div v-else>
+          <!-- Vista Tarjetas Móvil (< md) -->
+          <div class="divide-y divide-stone-800/60 md:hidden">
+            <article
+              v-for="producto in productos"
+              :key="`card-${producto.id}`"
+              class="p-4 space-y-3"
+            >
+              <div class="flex items-start gap-3">
+                <img
+                  v-if="producto.imagen_url"
+                  :src="producto.imagen_url"
+                  :alt="producto.nombre"
+                  class="h-14 w-14 shrink-0 rounded-xl object-cover bg-stone-900 border border-stone-800"
+                />
+                <div
+                  v-else
+                  class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-stone-900 border border-stone-800 text-[10px] text-stone-400"
+                >
+                  Sin foto
+                </div>
+
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <h3 class="font-bold text-sm text-white leading-snug">{{ producto.nombre }}</h3>
+                    <span class="shrink-0 font-bold text-sm text-[#e58a4e] tabular-nums">
+                      {{ formatearPrecio(producto.precio) }}
+                    </span>
+                  </div>
+                  <p v-if="producto.descripcion" class="mt-1 line-clamp-2 text-xs text-stone-400">
+                    {{ producto.descripcion }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                    :class="producto.activo ? 'border border-[#204933] bg-[#163223] text-[#4ade80]' : 'border border-stone-800 bg-[#110d0b] text-stone-400'"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full" :class="producto.activo ? 'bg-[#4ade80]' : 'bg-stone-500'" />
+                    {{ producto.activo ? 'Activo' : 'Inactivo' }}
+                  </span>
+
+                  <span
+                    class="rounded-full border border-stone-800 bg-[#110d0b] px-2.5 py-0.5 font-semibold"
+                    :class="producto.stock <= 5 ? 'text-amber-400 border-amber-800/50' : 'text-stone-300'"
+                  >
+                    Stock: {{ producto.stock }} un.
+                  </span>
+                </div>
+
+                <span class="text-[10px] text-stone-500">
+                  {{ formatearFecha(producto.creado_en) }}
+                </span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  @click="abrirEditarProducto(producto)"
+                  class="flex flex-1 min-w-[96px] items-center justify-center gap-1.5 rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2 text-xs font-semibold text-stone-200 transition hover:border-stone-700 hover:text-white"
+                >
+                  <Pencil :size="13" />
+                  <span>Editar</span>
+                </button>
+
+                <button
+                  v-if="authState.rol === 'empleado'"
+                  type="button"
+                  @click="abrirNotificarStock(producto)"
+                  class="flex flex-1 min-w-[110px] items-center justify-center gap-1.5 rounded-xl border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-xs font-semibold text-amber-300 transition hover:bg-amber-900/40"
+                >
+                  <Bell :size="13" />
+                  <span>Falta stock</span>
+                </button>
+
+                <button
+                  v-if="authState.rol === 'admin'"
+                  type="button"
+                  @click="confirmarEliminar(producto)"
+                  class="flex flex-1 min-w-[96px] items-center justify-center gap-1.5 rounded-xl border border-rose-900/40 bg-rose-950/20 px-3 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-950/40"
+                >
+                  <Trash2 :size="13" />
+                  <span>Borrar</span>
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <!-- Tabla Desktop (md+) -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full min-w-[700px] text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-stone-800/80 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400 bg-[#130f0d]">
                 <th class="py-3.5 px-4">Producto</th>
@@ -499,196 +590,201 @@ onMounted(() => {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </div>
 
     <!-- Modal Formulario: Alta y Modificación de Producto -->
     <div v-if="formularioAbierto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-5"
       @click.self="formularioAbierto = false">
-      <div class="w-full max-w-lg rounded-3xl border border-stone-800 bg-[#17120f] p-6 text-white my-8 shadow-2xl">
-        <div class="flex items-start justify-between">
+      <div class="flex max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-stone-800 bg-[#17120f] text-white shadow-2xl">
+        <div class="shrink-0 flex items-start justify-between border-b border-stone-800/70 px-5 pt-4 pb-3 sm:px-6 sm:pt-5">
           <div>
             <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">
               {{ modoEdicion ? 'Actualización de Datos' : 'Nuevo Registro de Menú' }}
             </p>
-            <h2 class="font-serif text-2xl font-bold text-white mt-0.5">
+            <h2 class="font-serif text-xl sm:text-2xl font-bold text-white mt-0.5">
               {{ modoEdicion ? 'Modificar Producto' : 'Crear Producto' }}
             </h2>
           </div>
           <button type="button" @click="formularioAbierto = false"
+            aria-label="Cerrar modal"
             class="rounded-full p-2 text-stone-400 hover:bg-[#221a15] hover:text-white transition">
             <X :size="16" />
           </button>
         </div>
 
-        <form class="mt-5 space-y-4" @submit.prevent="guardarProducto">
-          <!-- Nombre -->
-          <div>
-            <label class="block text-xs font-bold text-stone-300">
-              Nombre del Producto *
-              <input v-model="form.nombre" type="text" maxlength="80" required placeholder="Ej: Pizza Napolitana Especial"
-                class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
-                :class="erroresForm.nombre ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
-            </label>
-            <span v-if="erroresForm.nombre" class="text-[11px] font-medium text-rose-400 mt-1 block">
-              {{ erroresForm.nombre }}
-            </span>
-          </div>
-
-          <!-- Descripción -->
-          <div>
-            <label class="block text-xs font-bold text-stone-300">
-              Descripción
-              <textarea v-model="form.descripcion" rows="2" maxlength="500" placeholder="Ingredientes, detalles de preparación o presentación..."
-                class="mt-1.5 w-full resize-none rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
-                :class="erroresForm.descripcion ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'"></textarea>
-            </label>
-            <span v-if="erroresForm.descripcion" class="text-[11px] font-medium text-rose-400 mt-1 block">
-              {{ erroresForm.descripcion }}
-            </span>
-          </div>
-
-          <!-- Precio y Stock en 2 columnas -->
-          <div class="grid grid-cols-2 gap-3">
+        <form class="flex min-h-0 flex-1 flex-col" @submit.prevent="guardarProducto">
+          <div class="flex-1 overflow-y-auto px-5 py-3.5 sm:px-6 sm:py-4 space-y-3">
+            <!-- Nombre -->
             <div>
               <label class="block text-xs font-bold text-stone-300">
-                Precio ($) *
-                <input v-model="form.precio" type="number" min="0" step="0.01" required placeholder="0.00"
-                  class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
-                  :class="erroresForm.precio ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
+                Nombre del Producto *
+                <input v-model="form.nombre" type="text" maxlength="80" required placeholder="Ej: Pizza Napolitana Especial"
+                  class="mt-1 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none transition"
+                  :class="erroresForm.nombre ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
               </label>
-              <span v-if="erroresForm.precio" class="text-[11px] font-medium text-rose-400 mt-1 block">
-                {{ erroresForm.precio }}
+              <span v-if="erroresForm.nombre" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                {{ erroresForm.nombre }}
               </span>
             </div>
 
+            <!-- Descripción -->
             <div>
               <label class="block text-xs font-bold text-stone-300">
-                Stock (unidades) *
-                <input v-model="form.stock" type="number" min="0" step="1" required placeholder="0"
-                  :disabled="authState.rol === 'empleado'"
-                  class="mt-1.5 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none transition"
-                  :class="[
-                    authState.rol === 'empleado'
-                      ? 'opacity-50 cursor-not-allowed bg-stone-900 border-stone-800 text-stone-400'
-                      : (erroresForm.stock ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]')
-                  ]" />
+                Descripción
+                <textarea v-model="form.descripcion" rows="2" maxlength="500" placeholder="Ingredientes, detalles de preparación o presentación..."
+                  class="mt-1 w-full resize-none rounded-xl border bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none transition"
+                  :class="erroresForm.descripcion ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'"></textarea>
               </label>
-              <p v-if="authState.rol === 'empleado'" class="mt-1 text-[11px] text-amber-400 flex items-start gap-1">
-                <AlertCircle :size="12" class="shrink-0 mt-0.5" />
-                <span>Solo Administradores pueden editar el stock. Si se agotó, podés notificarlo abajo.</span>
-              </p>
-              <span v-else-if="erroresForm.stock" class="text-[11px] font-medium text-rose-400 mt-1 block">
-                {{ erroresForm.stock }}
+              <span v-if="erroresForm.descripcion" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                {{ erroresForm.descripcion }}
               </span>
             </div>
-          </div>
 
-          <!-- Banner para rol Empleado para Notificar Falta de Stock -->
-          <div v-if="modoEdicion && authState.rol === 'empleado'"
-            class="flex items-center justify-between rounded-2xl border border-amber-900/50 bg-amber-950/20 p-3">
-            <div class="flex items-center gap-2">
-              <BellRing :size="16" class="text-amber-400 shrink-0" />
-              <div class="text-[11px] text-stone-300">
-                <p class="font-bold text-amber-300">¿No hay más stock de este producto?</p>
-                <p class="text-stone-400">Podés avisarle al administrador de inmediato.</p>
+            <!-- Precio y Stock en 2 columnas -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-stone-300">
+                  Precio ($) *
+                  <input v-model="form.precio" type="number" min="0" step="0.01" required placeholder="0.00"
+                    class="mt-1 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none transition"
+                    :class="erroresForm.precio ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]'" />
+                </label>
+                <span v-if="erroresForm.precio" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                  {{ erroresForm.precio }}
+                </span>
               </div>
-            </div>
-            <button type="button"
-              @click="abrirNotificarStock({ id: productoActualId, nombre: form.nombre, stock: form.stock })"
-              class="rounded-xl border border-amber-800/60 bg-amber-900/40 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-800/60 transition">
-              Notificar falta
-            </button>
-          </div>
 
-          <!-- Imagen del Producto (Subir desde Dispositivo o URL) -->
-          <div>
-            <label class="block text-xs font-bold text-stone-300 mb-1.5">
-              Imagen del Plato o Producto (Subir desde dispositivo)
-            </label>
-
-            <!-- Input invisible para archivo del dispositivo -->
-            <input ref="inputArchivo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
-              class="hidden" @change="procesarArchivoSeleccionado" />
-
-            <!-- Vista 1: Ya tiene imagen asignada -->
-            <div v-if="form.imagen_url"
-              class="flex items-center gap-3.5 rounded-2xl border border-stone-800 bg-[#110d0b] p-3">
-              <div class="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
-                <img :src="form.imagen_url" :alt="form.nombre || 'Vista previa'"
-                  class="h-full w-full object-cover" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <p class="text-xs font-semibold text-stone-200 truncate">
-                  {{ form.nombre ? form.nombre : 'Imagen del plato' }}
+              <div>
+                <label class="block text-xs font-bold text-stone-300">
+                  Stock (unidades) *
+                  <input v-model="form.stock" type="number" min="0" step="1" required placeholder="0"
+                    :disabled="authState.rol === 'empleado'"
+                    class="mt-1 w-full rounded-xl border bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none transition"
+                    :class="[
+                      authState.rol === 'empleado'
+                        ? 'opacity-50 cursor-not-allowed bg-stone-900 border-stone-800 text-stone-400'
+                        : (erroresForm.stock ? 'border-rose-500' : 'border-stone-800 focus:border-[#e58a4e]')
+                    ]" />
+                </label>
+                <p v-if="authState.rol === 'empleado'" class="mt-1 text-[11px] text-amber-400 flex items-start gap-1">
+                  <AlertCircle :size="12" class="shrink-0 mt-0.5" />
+                  <span>Solo Administradores pueden editar el stock. Si se agotó, podés notificarlo abajo.</span>
                 </p>
-                <p class="text-[10px] text-stone-400 mt-0.5">
-                  {{ form.imagen_url.startsWith('data:') ? '✓ Archivo local cargado' : '✓ Enlace web configurado' }}
-                </p>
-                <div class="flex items-center gap-2 mt-2">
-                  <button type="button" @click="abrirSelectorArchivo"
-                    class="flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-800/80 px-2.5 py-1 text-[11px] font-semibold text-stone-200 hover:bg-stone-700 hover:text-white transition">
-                    <UploadCloud :size="12" />
-                    <span>Cambiar archivo</span>
-                  </button>
-                  <button type="button" @click="quitarImagen"
-                    class="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-950/40 transition">
-                    Quitar
-                  </button>
-                </div>
+                <span v-else-if="erroresForm.stock" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                  {{ erroresForm.stock }}
+                </span>
               </div>
             </div>
 
-            <!-- Vista 2: Sin imagen, zona interactiva de carga -->
-            <div v-else class="space-y-2">
-              <div @click="abrirSelectorArchivo"
-                class="group flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-800 bg-[#110d0b]/80 p-5 text-center cursor-pointer transition hover:border-[#e58a4e]/60 hover:bg-[#1a1411]">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-800/60 text-[#e58a4e] group-hover:scale-105 transition">
-                  <UploadCloud :size="20" />
+            <!-- Banner para rol Empleado para Notificar Falta de Stock -->
+            <div v-if="modoEdicion && authState.rol === 'empleado'"
+              class="flex items-center justify-between rounded-2xl border border-amber-900/50 bg-amber-950/20 p-3">
+              <div class="flex items-center gap-2">
+                <BellRing :size="16" class="text-amber-400 shrink-0" />
+                <div class="text-[11px] text-stone-300">
+                  <p class="font-bold text-amber-300">¿No hay más stock de este producto?</p>
+                  <p class="text-stone-400">Podés avisarle al administrador de inmediato.</p>
                 </div>
-                <p class="mt-2 text-xs font-bold text-stone-200 group-hover:text-[#e58a4e] transition">
-                  Subir imagen desde este dispositivo
-                </p>
-                <p class="text-[11px] text-stone-400 mt-0.5">
-                  Hacé clic acá para seleccionar archivo (JPG, PNG, WebP hasta 5MB)
-                </p>
               </div>
+              <button type="button"
+                @click="abrirNotificarStock({ id: productoActualId, nombre: form.nombre, stock: form.stock })"
+                class="rounded-xl border border-amber-800/60 bg-amber-900/40 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-800/60 transition">
+                Notificar falta
+              </button>
+            </div>
 
-              <!-- Enlace opcional para escribir URL web -->
-              <div class="flex items-center justify-between px-1">
-                <button type="button" @click="mostrarInputUrl = !mostrarInputUrl"
+            <!-- Imagen del Producto (Subir desde Dispositivo o URL) -->
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <span class="text-xs font-bold text-stone-300">Imagen del Plato</span>
+                <button
+                  v-if="!form.imagen_url"
+                  type="button"
+                  @click="mostrarInputUrl = !mostrarInputUrl"
                   class="text-[11px] text-stone-400 hover:text-[#e58a4e] transition">
-                  {{ mostrarInputUrl ? 'Ocultar ingreso por URL' : '¿O preferís ingresar una URL web?' }}
+                  {{ mostrarInputUrl ? 'Ocultar URL' : 'Ingresar URL web' }}
                 </button>
               </div>
 
-              <div v-if="mostrarInputUrl" class="mt-1">
-                <input v-model="form.imagen_url" type="url" placeholder="https://ejemplo.com/foto-plato.jpg"
-                  class="w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
+              <!-- Input invisible para archivo del dispositivo -->
+              <input ref="inputArchivo" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                class="hidden" @change="procesarArchivoSeleccionado" />
+
+              <!-- Vista 1: Ya tiene imagen asignada -->
+              <div v-if="form.imagen_url"
+                class="flex items-center gap-3.5 rounded-2xl border border-stone-800 bg-[#110d0b] p-2.5">
+                <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-stone-700 bg-stone-900">
+                  <img :src="form.imagen_url" :alt="form.nombre || 'Vista previa'"
+                    class="h-full w-full object-cover" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-semibold text-stone-200 truncate">
+                    {{ form.nombre ? form.nombre : 'Imagen del plato' }}
+                  </p>
+                  <p class="text-[10px] text-stone-400 mt-0.5">
+                    {{ form.imagen_url.startsWith('data:') ? '✓ Archivo local cargado' : '✓ Enlace web configurado' }}
+                  </p>
+                  <div class="flex items-center gap-2 mt-1.5">
+                    <button type="button" @click="abrirSelectorArchivo"
+                      class="flex items-center gap-1 rounded-lg border border-stone-700 bg-stone-800/80 px-2.5 py-1 text-[11px] font-semibold text-stone-200 hover:bg-stone-700 hover:text-white transition">
+                      <UploadCloud :size="12" />
+                      <span>Cambiar archivo</span>
+                    </button>
+                    <button type="button" @click="quitarImagen"
+                      class="rounded-lg px-2 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-950/40 transition">
+                      Quitar
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              <!-- Vista 2: Sin imagen, fila horizontal compacta -->
+              <div v-else class="space-y-2">
+                <div @click="abrirSelectorArchivo"
+                  class="group flex items-center gap-3.5 rounded-2xl border-2 border-dashed border-stone-800 bg-[#110d0b]/80 px-4 py-3 text-left cursor-pointer transition hover:border-[#e58a4e]/60 hover:bg-[#1a1411]">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-800/60 text-[#e58a4e] group-hover:scale-105 transition">
+                    <UploadCloud :size="18" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-xs font-bold text-stone-200 group-hover:text-[#e58a4e] transition">
+                      Subir imagen desde este dispositivo
+                    </p>
+                    <p class="text-[11px] text-stone-400 mt-0.5">
+                      JPG, PNG o WebP hasta 5MB
+                    </p>
+                  </div>
+                </div>
+
+                <div v-if="mostrarInputUrl">
+                  <input v-model="form.imagen_url" type="url" placeholder="https://ejemplo.com/foto-plato.jpg"
+                    class="w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
+                </div>
+              </div>
+
+              <span v-if="erroresForm.imagen_url" class="text-[11px] font-medium text-rose-400 mt-1 block">
+                {{ erroresForm.imagen_url }}
+              </span>
             </div>
 
-            <span v-if="erroresForm.imagen_url" class="text-[11px] font-medium text-rose-400 mt-1 block">
-              {{ erroresForm.imagen_url }}
-            </span>
+            <!-- Estado Activo / Inactivo -->
+            <label class="flex cursor-pointer items-center gap-2.5 text-xs font-bold text-stone-300 pt-0.5">
+              <input v-model="form.activo" type="checkbox" class="h-4 w-4 accent-[#e58a4e] rounded" />
+              <span>Producto disponible en el menú (Activo)</span>
+            </label>
           </div>
 
-          <!-- Estado Activo / Inactivo -->
-          <label class="flex cursor-pointer items-center gap-2.5 text-xs font-bold text-stone-300 pt-1">
-            <input v-model="form.activo" type="checkbox" class="h-4 w-4 accent-[#e58a4e] rounded" />
-            <span>Producto disponible en el menú (Activo)</span>
-          </label>
-
-          <!-- Botones de Acción del Formulario -->
-          <div class="flex items-center justify-end gap-2.5 pt-4 border-t border-stone-800/80">
+          <!-- Botones de Acción del Formulario siempre visibles -->
+          <div class="shrink-0 flex items-center justify-end gap-2.5 border-t border-stone-800/80 px-5 py-3 sm:px-6 bg-[#17120f]">
             <button type="button" @click="formularioAbierto = false"
-              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
+              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2 text-xs font-semibold text-stone-300 hover:text-white transition">
               Cancelar
             </button>
             <button type="submit"
-              class="flex items-center gap-1.5 rounded-xl bg-[#e58a4e] px-5 py-2.5 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
+              class="flex items-center gap-1.5 rounded-xl bg-[#e58a4e] px-5 py-2 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e]">
               <Check :size="15" />
               <span>{{ modoEdicion ? 'Guardar Cambios' : 'Crear Producto' }}</span>
             </button>

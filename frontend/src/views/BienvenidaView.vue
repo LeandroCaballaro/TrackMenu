@@ -12,15 +12,15 @@ import { authState } from '@/services/api'
     </div>
 
     <section
-      class="relative z-10 w-full max-w-md rounded-3xl border border-stone-800/80 bg-[#17120f] p-6 text-white shadow-2xl sm:p-8"
+      class="relative z-10 w-full max-w-md rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 text-white shadow-2xl sm:p-8"
       aria-labelledby="welcome-title"
     >
       <!-- Encabezado de marca -->
-      <div class="flex items-center gap-3.5">
-        <img :src="logoIcono" alt="TrackMenú" class="h-12 w-12 shrink-0 object-contain" />
+      <div class="flex items-center gap-3 sm:gap-3.5">
+        <img :src="logoIcono" alt="TrackMenú" class="h-11 w-11 sm:h-12 sm:w-12 shrink-0 object-contain" />
         <div class="min-w-0">
           <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Bienvenido a TrackMenú</p>
-          <h1 id="welcome-title" class="font-girassol text-3xl font-normal leading-tight text-white">
+          <h1 id="welcome-title" class="font-girassol text-2xl sm:text-3xl font-normal leading-tight text-white">
             Carta Digital
           </h1>
         </div>

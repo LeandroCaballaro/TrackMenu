@@ -6,17 +6,76 @@ const STORAGE_DATA_KEY = 'trackmenu_saas_db'
 // Semilla inicial con productos para el negocio por defecto
 const initialMockDatabase = {
   organizaciones: [
-    { id: 'org_demo_1', nombre: 'Parrilla Central' },
-    { id: 'org_demo_2', nombre: 'Bar & Café Palermo' },
+    {
+      id: 'org_demo_1',
+      nombre: 'Parrilla Central',
+      plan: 'pro',
+      estado_suscripcion: 'al_dia',
+      monto_mensual: 28000,
+      fecha_vencimiento: '2026-12-10T00:00:00.000Z',
+      bloqueo_mora: false,
+      admin_nombre: 'Carlos Admin',
+      admin_email: 'admin@demo.com',
+      telefono: '+54 11 4455-6677',
+      notas_facturacion: 'Factura A emitida los días 10 de cada mes.',
+      creado_en: '2026-10-15T10:00:00.000Z',
+    },
+    {
+      id: 'org_demo_2',
+      nombre: 'Bar & Café Palermo',
+      plan: 'basico',
+      estado_suscripcion: 'pendiente',
+      monto_mensual: 18000,
+      fecha_vencimiento: '2026-11-12T00:00:00.000Z',
+      bloqueo_mora: false,
+      admin_nombre: 'Martín Palermo',
+      admin_email: 'martin@palermo.com',
+      telefono: '+54 11 3322-1100',
+      notas_facturacion: 'Aviso de vencimiento enviado por WhatsApp.',
+      creado_en: '2026-10-20T11:00:00.000Z',
+    },
+    {
+      id: 'org_demo_3',
+      nombre: 'Cervecería Patagonia Norte',
+      plan: 'pro',
+      estado_suscripcion: 'mora',
+      monto_mensual: 28000,
+      fecha_vencimiento: '2026-10-28T00:00:00.000Z',
+      bloqueo_mora: true,
+      admin_nombre: 'Rodrigo Peña',
+      admin_email: 'rodrigo@cerveceriapatagonia.com',
+      telefono: '+54 11 9988-7766',
+      notas_facturacion: 'No cumplió con el pago del abono mensual de octubre. Suspendido preventivamente.',
+      creado_en: '2026-09-01T08:00:00.000Z',
+    },
   ],
   usuarios: [
+    {
+      id: 'usr_superadmin_1',
+      email: 'superadmin@demo.com',
+      password: 'superadmin123',
+      nombre: 'Super Administrador',
+      telefono: '+54 11 0000-9999',
+      puesto: 'Director de Plataforma',
+      estado: 'activo',
+      notas: 'Acceso global a todos los negocios y control de suscripciones.',
+      organizacion_id: 'org_demo_1',
+      rol: 'superadmin',
+      creado_en: '2026-09-01T00:00:00.000Z',
+      localOnly: true,
+    },
     {
       id: 'usr_admin_1',
       email: 'admin@demo.com',
       password: 'admin12345',
       nombre: 'Carlos Admin',
+      telefono: '+54 11 4455-6677',
+      puesto: 'Gerente General',
+      estado: 'activo',
+      notas: 'Encargado principal y dueño del local.',
       organizacion_id: 'org_demo_1',
       rol: 'admin',
+      creado_en: '2026-10-15T10:00:00.000Z',
       localOnly: true,
     },
     {
@@ -24,8 +83,27 @@ const initialMockDatabase = {
       email: 'empleado@demo.com',
       password: 'empleado12345',
       nombre: 'Lucía Empleada',
+      telefono: '+54 11 5566-7788',
+      puesto: 'Cajera / Moza Salón',
+      estado: 'activo',
+      notas: 'Turno tarde y noche.',
       organizacion_id: 'org_demo_1',
       rol: 'empleado',
+      creado_en: '2026-11-01T12:00:00.000Z',
+      localOnly: true,
+    },
+    {
+      id: 'usr_empleado_2',
+      email: 'marcos@demo.com',
+      password: 'marcos12345',
+      nombre: 'Marcos Mozo',
+      telefono: '+54 11 6677-8899',
+      puesto: 'Mozo de Salón',
+      estado: 'activo',
+      notas: 'Atención sector mesas y terraza.',
+      organizacion_id: 'org_demo_1',
+      rol: 'empleado',
+      creado_en: '2026-11-05T14:30:00.000Z',
       localOnly: true,
     },
   ],
@@ -110,98 +188,17 @@ const initialMockDatabase = {
       actualizado_en: '2026-11-01T08:00:00.000Z',
     },
   ],
-  ventas: [
-    {
-      id: 'vnt_101',
-      organizacion_id: 'org_demo_1',
-      mesa_numero: 4,
-      total: 2840,
-      metodo_pago: 'efectivo',
-      estado: 'completada',
-      usuario_id: 'usr_empleado_1',
-      created_at: new Date(Date.now() - 3600000 * 2).toISOString(),
-      anulado_en: null,
-      anulado_por: null,
-      motivo_anulacion: null,
-    },
-    {
-      id: 'vnt_102',
-      organizacion_id: 'org_demo_1',
-      mesa_numero: 7,
-      total: 4120,
-      metodo_pago: 'transferencia_qr',
-      estado: 'completada',
-      usuario_id: 'usr_admin_1',
-      created_at: new Date(Date.now() - 3600000 * 4).toISOString(),
-      anulado_en: null,
-      anulado_por: null,
-      motivo_anulacion: null,
-    },
-    {
-      id: 'vnt_103',
-      organizacion_id: 'org_demo_1',
-      mesa_numero: 2,
-      total: 1890,
-      metodo_pago: 'tarjeta',
-      estado: 'completada',
-      usuario_id: 'usr_empleado_1',
-      created_at: new Date(Date.now() - 3600000 * 6).toISOString(),
-      anulado_en: null,
-      anulado_por: null,
-      motivo_anulacion: null,
-    },
-    {
-      id: 'vnt_104',
-      organizacion_id: 'org_demo_1',
-      mesa_numero: 9,
-      total: 3500,
-      metodo_pago: 'efectivo',
-      estado: 'anulada',
-      usuario_id: 'usr_empleado_1',
-      created_at: new Date(Date.now() - 3600000 * 8).toISOString(),
-      anulado_en: new Date(Date.now() - 3600000 * 7).toISOString(),
-      anulado_por: 'usr_admin_1',
-      motivo_anulacion: 'Error en la comanda digitada por el mozo.',
-    },
-  ],
-  detalle_ventas: [
-    { id: 'det_1', venta_id: 'vnt_101', producto_id: 'prod_1', cantidad: 1, precio_unitario: 1890, subtotal: 1890 },
-    { id: 'det_2', venta_id: 'vnt_101', producto_id: 'prod_2', cantidad: 1, precio_unitario: 950, subtotal: 950 },
-    { id: 'det_3', venta_id: 'vnt_102', producto_id: 'prod_1', cantidad: 2, precio_unitario: 1890, subtotal: 3780 },
-    { id: 'det_4', venta_id: 'vnt_102', producto_id: 'prod_4', cantidad: 1, precio_unitario: 340, subtotal: 340 },
-    { id: 'det_5', venta_id: 'vnt_103', producto_id: 'prod_1', cantidad: 1, precio_unitario: 1890, subtotal: 1890 },
-    { id: 'det_6', venta_id: 'vnt_104', producto_id: 'prod_3', cantidad: 2, precio_unitario: 1050, subtotal: 2100 },
-    { id: 'det_7', venta_id: 'vnt_104', producto_id: 'prod_5', cantidad: 1, precio_unitario: 1400, subtotal: 1400 },
-  ],
-  auditoria_logs: [
-    {
-      id: 'aud_1',
-      organizacion_id: 'org_demo_1',
-      usuario_id: 'usr_admin_1',
-      accion: 'anulacion_ticket',
-      detalles: { venta_id: 'vnt_104', mesa_numero: 9, total: 3500, motivo: 'Error en la comanda digitada por el mozo.' },
-      created_at: new Date(Date.now() - 3600000 * 7).toISOString(),
-    },
-    {
-      id: 'aud_2',
-      organizacion_id: 'org_demo_1',
-      usuario_id: 'usr_admin_1',
-      accion: 'cambio_precio',
-      detalles: { producto: 'Burger Clásica', precio_anterior: 1650, precio_nuevo: 1890 },
-      created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
-    },
-    {
-      id: 'aud_3',
-      organizacion_id: 'org_demo_1',
-      usuario_id: 'usr_admin_1',
-      accion: 'ajuste_stock',
-      detalles: { producto: 'Milanesa de Pollo', tipo: 'ingreso', cantidad: 25 },
-      created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-    },
-  ],
+  comandas_activas: [],
+  ventas: [],
+  detalle_ventas: [],
+  auditoria_logs: [],
 }
 
-// Carga o inicializa la base de datos simulada
+const DEMO_VENTA_IDS = new Set(['vnt_101', 'vnt_102', 'vnt_103', 'vnt_104'])
+const DEMO_DETALLE_IDS = new Set(['det_1', 'det_2', 'det_3', 'det_4', 'det_5', 'det_6', 'det_7'])
+const DEMO_AUDIT_IDS = new Set(['aud_1', 'aud_2', 'aud_3'])
+
+// Carga o inicializa la base de datos local persistente
 const getLocalDb = () => {
   try {
     const raw = localStorage.getItem(STORAGE_DATA_KEY)
@@ -210,8 +207,47 @@ const getLocalDb = () => {
       return JSON.parse(JSON.stringify(initialMockDatabase))
     }
     const db = JSON.parse(raw)
+    let updated = false
+
+    if (!Array.isArray(db.comandas_activas)) {
+      db.comandas_activas = []
+      updated = true
+    }
+
+    if (Array.isArray(db.ventas)) {
+      const ventasReales = db.ventas.filter((v) => !DEMO_VENTA_IDS.has(v.id))
+      if (ventasReales.length !== db.ventas.length) {
+        db.ventas = ventasReales
+        updated = true
+      }
+    } else {
+      db.ventas = []
+      updated = true
+    }
+
+    if (Array.isArray(db.detalle_ventas)) {
+      const detallesReales = db.detalle_ventas.filter((d) => !DEMO_DETALLE_IDS.has(d.id))
+      if (detallesReales.length !== db.detalle_ventas.length) {
+        db.detalle_ventas = detallesReales
+        updated = true
+      }
+    } else {
+      db.detalle_ventas = []
+      updated = true
+    }
+
+    if (Array.isArray(db.auditoria_logs)) {
+      const logsReales = db.auditoria_logs.filter((a) => !DEMO_AUDIT_IDS.has(a.id))
+      if (logsReales.length !== db.auditoria_logs.length) {
+        db.auditoria_logs = logsReales
+        updated = true
+      }
+    } else {
+      db.auditoria_logs = []
+      updated = true
+    }
+
     if (Array.isArray(db.usuarios)) {
-      let updated = false
       const filtrados = db.usuarios.filter((u) => u.rol !== 'consulta')
       if (filtrados.length !== db.usuarios.length) {
         db.usuarios = filtrados
@@ -222,14 +258,68 @@ const getLocalDb = () => {
         if (!existing) {
           db.usuarios.push({ ...seedUser })
           updated = true
-        } else if (!existing.password) {
-          existing.password = seedUser.password
-          existing.localOnly = true
+        } else {
+          if (!existing.password) {
+            existing.password = seedUser.password
+            existing.localOnly = true
+            updated = true
+          }
+          if (!existing.telefono && seedUser.telefono) {
+            existing.telefono = seedUser.telefono
+            updated = true
+          }
+          if (!existing.puesto && seedUser.puesto) {
+            existing.puesto = seedUser.puesto
+            updated = true
+          }
+          if (!existing.estado) {
+            existing.estado = seedUser.estado || 'activo'
+            updated = true
+          }
+          if (!existing.notas && seedUser.notas) {
+            existing.notas = seedUser.notas
+            updated = true
+          }
+          if (!existing.creado_en && seedUser.creado_en) {
+            existing.creado_en = seedUser.creado_en
+            updated = true
+          }
+        }
+      }
+      for (const u of db.usuarios) {
+        if (u.nombre === 'Super Administrador SaaS') {
+          u.nombre = 'Super Administrador'
+          updated = true
+        }
+        if (!u.estado) {
+          u.estado = 'activo'
+          updated = true
+        }
+        if (!u.puesto) {
+          u.puesto = u.rol === 'admin' ? 'Administrador' : (u.rol === 'superadmin' ? 'Director de Plataforma' : 'Personal')
           updated = true
         }
       }
-      if (updated) saveLocalDb(db)
+
+      if (Array.isArray(db.organizaciones)) {
+        for (const seedOrg of initialMockDatabase.organizaciones) {
+          const existingOrg = db.organizaciones.find((o) => o.id === seedOrg.id)
+          if (!existingOrg) {
+            db.organizaciones.push({ ...seedOrg })
+            updated = true
+          } else {
+            if (!existingOrg.plan) { existingOrg.plan = seedOrg.plan; updated = true }
+            if (!existingOrg.estado_suscripcion) { existingOrg.estado_suscripcion = seedOrg.estado_suscripcion; updated = true }
+            if (!existingOrg.monto_mensual) { existingOrg.monto_mensual = seedOrg.monto_mensual; updated = true }
+            if (!existingOrg.fecha_vencimiento) { existingOrg.fecha_vencimiento = seedOrg.fecha_vencimiento; updated = true }
+            if (existingOrg.bloqueo_mora === undefined) { existingOrg.bloqueo_mora = seedOrg.bloqueo_mora; updated = true }
+            if (!existingOrg.admin_email && seedOrg.admin_email) { existingOrg.admin_email = seedOrg.admin_email; updated = true }
+          }
+        }
+      }
     }
+
+    if (updated) saveLocalDb(db)
     return db
   } catch {
     return JSON.parse(JSON.stringify(initialMockDatabase))
@@ -252,6 +342,10 @@ const savedSession = (() => {
     if (parsed && parsed.rol === 'consulta') {
       localStorage.removeItem(STORAGE_SESSION_KEY)
       return null
+    }
+    if (parsed?.user?.nombre === 'Super Administrador SaaS') {
+      parsed.user.nombre = 'Super Administrador'
+      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(parsed))
     }
     return parsed
   } catch {
@@ -785,12 +879,24 @@ export const adminService = {
       .filter((p) => p.organizacion_id === orgId && p.stock <= 5)
       .sort((a, b) => a.stock - b.stock)
 
-    const platosMasVendidos = [
-      { id: 'prod_1', nombre: 'Burger Clásica', cantidad: 4 },
-      { id: 'prod_3', nombre: 'Milanesa de Pollo', cantidad: 2 },
-      { id: 'prod_2', nombre: 'Papas a la Piedra', cantidad: 1 },
-      { id: 'prod_4', nombre: 'Limonada Casera', cantidad: 1 },
-    ]
+    const ventasIds = new Set(ventas.map((v) => v.id))
+    const productosById = new Map((db.productos || []).map((p) => [p.id, p]))
+    const vendidosMap = new Map()
+    for (const det of db.detalle_ventas || []) {
+      if (!ventasIds.has(det.venta_id)) continue
+      const prod = productosById.get(det.producto_id)
+      const prev = vendidosMap.get(det.producto_id) || {
+        id: det.producto_id,
+        nombre: prod?.nombre || 'Producto',
+        cantidad: 0,
+      }
+      prev.cantidad += Number(det.cantidad || 0)
+      vendidosMap.set(det.producto_id, prev)
+    }
+
+    const platosMasVendidos = Array.from(vendidosMap.values())
+      .sort((a, b) => b.cantidad - a.cantidad)
+      .slice(0, 5)
 
     return {
       success: true,
@@ -986,6 +1092,10 @@ export const adminService = {
         nombre: u.nombre || u.email,
         email: u.email,
         rol: u.rol || 'empleado',
+        telefono: u.telefono || '',
+        puesto: u.puesto || (u.rol === 'admin' ? 'Administrador' : 'Personal'),
+        estado: u.estado || 'activo',
+        notas: u.notas || '',
         creado_en: u.creado_en || null,
       }))
 
@@ -995,18 +1105,38 @@ export const adminService = {
           headers: { Authorization: `Bearer ${authState.token}` },
         })
         const json = await res.json()
-        if (res.ok && json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (res.ok && json.success && Array.isArray(json.data)) {
           const mapaLocal = new Map(locales.map((u) => [u.usuario_id, u]))
-          const remotos = json.data.map((m) => {
+          let remotos = json.data.map((m) => {
             const localInfo = mapaLocal.get(m.usuario_id)
             return {
               usuario_id: m.usuario_id,
-              nombre: m.nombre || localInfo?.nombre || 'Usuario del local',
-              email: m.email || localInfo?.email || m.usuario_id,
-              rol: m.rol,
+              nombre: m.nombre || localInfo?.nombre || (m.usuario_id === authState.user?.id ? (authState.user?.nombre || authState.user?.email?.split('@')[0]) : 'Usuario del local'),
+              email: m.email || localInfo?.email || (m.usuario_id === authState.user?.id ? authState.user?.email : m.usuario_id),
+              rol: m.rol || 'empleado',
+              telefono: m.telefono || localInfo?.telefono || '',
+              puesto: m.puesto || localInfo?.puesto || (m.rol === 'admin' ? 'Administrador' : 'Personal'),
+              estado: m.estado || localInfo?.estado || 'activo',
+              notas: m.notas || localInfo?.notas || '',
               creado_en: m.creado_en,
             }
           })
+
+          // Si el usuario actual no figura, agregarlo para que siempre se vea su cuenta
+          if (authState.user && !remotos.some((u) => u.usuario_id === authState.user.id)) {
+            remotos.unshift({
+              usuario_id: authState.user.id,
+              nombre: authState.user.nombre || authState.user.email?.split('@')[0] || 'Administrador',
+              email: authState.user.email,
+              rol: authState.rol || 'admin',
+              telefono: '',
+              puesto: 'Administrador General',
+              estado: 'activo',
+              notas: 'Cuenta administradora activa',
+              creado_en: null,
+            })
+          }
+
           return { success: true, data: remotos }
         }
       } catch {
@@ -1017,7 +1147,23 @@ export const adminService = {
     return { success: true, data: locales }
   },
 
-  async crearUsuario({ nombre, email, password, rol = 'empleado' }) {
+  async getUsuarioById(usuarioId) {
+    if (authState.rol !== 'admin') {
+      return { success: false, message: 'Solo el administrador puede ver perfiles de usuario.' }
+    }
+
+    const res = await this.getUsuarios()
+    if (!res.success) return res
+
+    const usuario = (res.data || []).find((u) => (u.usuario_id || u.id) === usuarioId)
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado en la organización.' }
+    }
+
+    return { success: true, data: usuario }
+  },
+
+  async crearUsuario({ nombre, email, password, rol = 'empleado', telefono = '', puesto = '', estado = 'activo', notas = '' }) {
     if (authState.rol !== 'admin') {
       return { success: false, message: 'Solo el administrador puede crear nuevos usuarios.' }
     }
@@ -1053,7 +1199,7 @@ export const adminService = {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${authState.token}`,
           },
-          body: JSON.stringify({ nombre: nombreLimpio, email: emailLimpio, password, rol }),
+          body: JSON.stringify({ nombre: nombreLimpio, email: emailLimpio, password, rol, telefono, puesto, estado, notas }),
         })
         const json = await res.json()
         if (res.ok && json.success) {
@@ -1080,6 +1226,10 @@ export const adminService = {
       email: emailLimpio,
       password,
       nombre: nombreLimpio,
+      telefono: telefono.trim(),
+      puesto: puesto.trim() || (rol === 'admin' ? 'Administrador' : 'Personal'),
+      estado: estado || 'activo',
+      notas: notas.trim(),
       organizacion_id: orgId,
       rol,
       creado_en: ahora,
@@ -1097,6 +1247,8 @@ export const adminService = {
         nombre: nombreLimpio,
         email: emailLimpio,
         rol,
+        puesto: puesto.trim(),
+        estado,
       },
       created_at: ahora,
     })
@@ -1111,9 +1263,159 @@ export const adminService = {
         nombre: nombreLimpio,
         email: emailLimpio,
         rol,
+        telefono: telefono.trim(),
+        puesto: puesto.trim() || (rol === 'admin' ? 'Administrador' : 'Personal'),
+        estado: estado || 'activo',
+        notas: notas.trim(),
         creado_en: ahora,
       },
     }
+  },
+
+  async actualizarUsuario({ id, nombre, email, rol, telefono, puesto, estado, notas, password }) {
+    if (authState.rol !== 'admin') {
+      return { success: false, message: 'Solo el administrador puede editar información de usuarios.' }
+    }
+
+    if (!id) {
+      return { success: false, message: 'ID de usuario requerido.' }
+    }
+
+    if (rol && !['admin', 'empleado'].includes(rol)) {
+      return { success: false, message: 'Rol inválido.' }
+    }
+
+    if (id === authState.user?.id && rol && rol !== 'admin') {
+      return { success: false, message: 'No podés revocar tu propio permiso de administrador.' }
+    }
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/admin/usuarios/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authState.token}`,
+          },
+          body: JSON.stringify({ nombre, email, rol, telefono, puesto, estado, notas, password }),
+        })
+        const json = await res.json()
+        if (!res.ok && res.status !== 503) {
+          return { success: false, message: json.message || 'No se pudo actualizar el usuario.' }
+        }
+      } catch {
+        // Fallback local
+      }
+    }
+
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    const usuario = (db.usuarios || []).find((u) => u.id === id && u.organizacion_id === orgId)
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado en la organización.' }
+    }
+
+    if (nombre !== undefined && nombre.trim()) usuario.nombre = nombre.trim()
+    if (email !== undefined && email.trim()) usuario.email = email.trim().toLowerCase()
+    if (rol) usuario.rol = rol
+    if (telefono !== undefined) usuario.telefono = String(telefono).trim()
+    if (puesto !== undefined) usuario.puesto = String(puesto).trim()
+    if (estado !== undefined) usuario.estado = estado
+    if (notas !== undefined) usuario.notas = String(notas).trim()
+    if (password && password.length >= 8) usuario.password = password
+
+    // Si es el usuario logueado actualmente, actualizar authState
+    if (authState.user?.id === id) {
+      if (usuario.nombre) authState.user.nombre = usuario.nombre
+      if (usuario.email) authState.user.email = usuario.email
+      if (usuario.rol) authState.rol = usuario.rol
+      persistSession()
+    }
+
+    if (!db.auditoria_logs) db.auditoria_logs = []
+    db.auditoria_logs.unshift({
+      id: 'aud_' + Date.now(),
+      organizacion_id: orgId,
+      usuario_id: authState.user?.id || 'usr_admin_1',
+      accion: 'cambio_rol',
+      detalles: {
+        tipo_modificacion: 'perfil_usuario',
+        usuario_afectado: id,
+        nombre: usuario.nombre,
+        rol: usuario.rol,
+        puesto: usuario.puesto,
+        estado: usuario.estado,
+      },
+      created_at: new Date().toISOString(),
+    })
+
+    saveLocalDb(db)
+    return {
+      success: true,
+      message: `Información de ${usuario.nombre} actualizada correctamente.`,
+      data: {
+        usuario_id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+        telefono: usuario.telefono,
+        puesto: usuario.puesto,
+        estado: usuario.estado,
+        notas: usuario.notas,
+        creado_en: usuario.creado_en,
+      },
+    }
+  },
+
+  async eliminarUsuario(usuarioId) {
+    if (authState.rol !== 'admin') {
+      return { success: false, message: 'Solo el administrador puede eliminar usuarios.' }
+    }
+
+    if (usuarioId === authState.user?.id) {
+      return { success: false, message: 'No podés eliminar tu propia cuenta de administrador.' }
+    }
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/admin/usuarios/${usuarioId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (!res.ok && res.status !== 503) {
+          return { success: false, message: json.message || 'No se pudo eliminar el usuario.' }
+        }
+      } catch {
+        // Fallback local
+      }
+    }
+
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    const index = (db.usuarios || []).findIndex((u) => u.id === usuarioId && u.organizacion_id === orgId)
+    if (index === -1) {
+      return { success: false, message: 'Usuario no encontrado.' }
+    }
+
+    const [eliminado] = db.usuarios.splice(index, 1)
+
+    if (!db.auditoria_logs) db.auditoria_logs = []
+    db.auditoria_logs.unshift({
+      id: 'aud_' + Date.now(),
+      organizacion_id: orgId,
+      usuario_id: authState.user?.id || 'usr_admin_1',
+      accion: 'baja_producto',
+      detalles: {
+        accion_real: 'baja_usuario',
+        usuario_eliminado: usuarioId,
+        nombre: eliminado?.nombre,
+      },
+      created_at: new Date().toISOString(),
+    })
+
+    saveLocalDb(db)
+    return { success: true, message: `Usuario ${eliminado?.nombre || ''} eliminado correctamente.` }
   },
 
   async cambiarRolUsuario(usuarioId, nuevoRol) {
@@ -1203,5 +1505,643 @@ export const adminService = {
     return true
   },
 }
+
+export const superAdminService = {
+  async getKpis() {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch('/api/superadmin/kpis', {
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return { success: true, data: json.data }
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const orgs = db.organizaciones || []
+    const ahora = new Date()
+
+    let totalAlDia = 0
+    let totalEnMora = 0
+    let totalBloqueados = 0
+    let mrrTotal = 0
+    let deudaEnMora = 0
+
+    orgs.forEach((o) => {
+      const monto = Number(o.monto_mensual || 20000)
+      mrrTotal += monto
+      const vencido = o.fecha_vencimiento && new Date(o.fecha_vencimiento) < ahora
+      const esMora = o.estado_suscripcion === 'mora' || o.estado_suscripcion === 'pendiente' || vencido
+
+      if (esMora) {
+        totalEnMora++
+        deudaEnMora += monto
+      } else {
+        totalAlDia++
+      }
+
+      if (o.bloqueo_mora) totalBloqueados++
+    })
+
+    return {
+      success: true,
+      data: {
+        total_organizaciones: orgs.length,
+        organizaciones_al_dia: totalAlDia,
+        organizaciones_en_mora: totalEnMora,
+        organizaciones_bloqueadas: totalBloqueados,
+        mrr_total: mrrTotal,
+        deuda_en_mora: deudaEnMora,
+        total_productos: (db.productos || []).length,
+        total_usuarios: (db.usuarios || []).length,
+      },
+    }
+  },
+
+  async getOrganizaciones() {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch('/api/superadmin/organizaciones', {
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return { success: true, data: json.data }
+        }
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const ahora = new Date()
+    const lista = (db.organizaciones || []).map((o) => {
+      const fechaVenc = o.fecha_vencimiento || null
+      const vencido = fechaVenc && new Date(fechaVenc) < ahora
+      let estado = o.estado_suscripcion || 'al_dia'
+      if (vencido && estado === 'al_dia') estado = 'pendiente'
+
+      let diasMora = 0
+      if (fechaVenc && (estado === 'mora' || estado === 'pendiente' || vencido)) {
+        const diff = ahora.getTime() - new Date(fechaVenc).getTime()
+        if (diff > 0) diasMora = Math.floor(diff / (1000 * 60 * 60 * 24))
+      }
+
+      const totalProds = (db.productos || []).filter((p) => p.organizacion_id === o.id).length
+      const totalUsers = (db.usuarios || []).filter((u) => u.organizacion_id === o.id).length
+
+      return {
+        id: o.id,
+        nombre: o.nombre,
+        plan: o.plan || 'pro',
+        estado_suscripcion: estado,
+        monto_mensual: Number(o.monto_mensual || 20000),
+        fecha_vencimiento: fechaVenc,
+        dias_mora: diasMora,
+        bloqueo_mora: Boolean(o.bloqueo_mora),
+        notas_facturacion: o.notas_facturacion || '',
+        admin_nombre: o.admin_nombre || 'Administrador',
+        admin_email: o.admin_email || '',
+        telefono: o.telefono || '',
+        total_productos: totalProds,
+        total_usuarios: totalUsers,
+        creado_en: o.creado_en || null,
+      }
+    })
+
+    return { success: true, data: lista }
+  },
+
+  async crearOrganizacion(datos) {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch('/api/superadmin/organizaciones', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authState.token}`,
+          },
+          body: JSON.stringify(datos),
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return json
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const nuevoId = 'org_' + Date.now()
+    const nueva = {
+      id: nuevoId,
+      nombre: datos.nombre.trim(),
+      plan: datos.plan || 'pro',
+      estado_suscripcion: datos.estado_suscripcion || 'al_dia',
+      monto_mensual: Number(datos.monto_mensual) || 20000,
+      fecha_vencimiento: datos.fecha_vencimiento || new Date(Date.now() + 30 * 86400000).toISOString(),
+      bloqueo_mora: Boolean(datos.bloqueo_mora),
+      notas_facturacion: (datos.notas_facturacion || '').trim(),
+      admin_nombre: datos.admin_nombre || 'Administrador',
+      admin_email: datos.admin_email || '',
+      telefono: datos.telefono || '',
+      creado_en: new Date().toISOString(),
+    }
+
+    if (!db.organizaciones) db.organizaciones = []
+    db.organizaciones.unshift(nueva)
+
+    if (datos.admin_email && datos.admin_password) {
+      if (!db.usuarios) db.usuarios = []
+      db.usuarios.push({
+        id: 'usr_' + Date.now(),
+        email: datos.admin_email.trim().toLowerCase(),
+        password: datos.admin_password,
+        nombre: datos.admin_nombre || 'Administrador',
+        organizacion_id: nuevoId,
+        rol: 'admin',
+        estado: 'activo',
+        puesto: 'Gerente General',
+        creado_en: new Date().toISOString(),
+        localOnly: true,
+      })
+    }
+
+    saveLocalDb(db)
+    return { success: true, message: `Negocio "${nueva.nombre}" creado exitosamente.`, data: nueva }
+  },
+
+  async actualizarOrganizacion(id, datos) {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/superadmin/organizaciones/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authState.token}`,
+          },
+          body: JSON.stringify(datos),
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return json
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const org = (db.organizaciones || []).find((o) => o.id === id)
+    if (!org) return { success: false, message: 'Organización no encontrada.' }
+
+    if (datos.nombre !== undefined) org.nombre = datos.nombre.trim()
+    if (datos.plan !== undefined) org.plan = datos.plan
+    if (datos.estado_suscripcion !== undefined) {
+      org.estado_suscripcion = datos.estado_suscripcion
+      if (datos.estado_suscripcion === 'al_dia') org.bloqueo_mora = false
+    }
+    if (datos.monto_mensual !== undefined) org.monto_mensual = Number(datos.monto_mensual)
+    if (datos.fecha_vencimiento !== undefined) org.fecha_vencimiento = datos.fecha_vencimiento
+    if (datos.bloqueo_mora !== undefined) org.bloqueo_mora = Boolean(datos.bloqueo_mora)
+    if (datos.notas_facturacion !== undefined) org.notas_facturacion = datos.notas_facturacion.trim()
+
+    saveLocalDb(db)
+    return { success: true, message: 'Negocio y suscripción actualizados.', data: org }
+  },
+
+  async registrarPago(id) {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/superadmin/organizaciones/${id}/pago`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return json
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const org = (db.organizaciones || []).find((o) => o.id === id)
+    if (!org) return { success: false, message: 'Organización no encontrada.' }
+
+    org.estado_suscripcion = 'al_dia'
+    org.bloqueo_mora = false
+    org.fecha_vencimiento = new Date(Date.now() + 30 * 86400000).toISOString()
+
+    saveLocalDb(db)
+    return { success: true, message: `Pago registrado. ${org.nombre} quedó al día por 30 días.`, data: org }
+  },
+
+  async suspenderPorMora(id) {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/superadmin/organizaciones/${id}/suspender-mora`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return json
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const org = (db.organizaciones || []).find((o) => o.id === id)
+    if (!org) return { success: false, message: 'Organización no encontrada.' }
+
+    org.estado_suscripcion = 'mora'
+    org.bloqueo_mora = true
+
+    saveLocalDb(db)
+    return { success: true, message: `Acceso de ${org.nombre} suspendido por falta de pago.`, data: org }
+  },
+
+  async eliminarOrganizacion(id) {
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/superadmin/organizaciones/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success) return json
+      } catch {}
+    }
+
+    const db = getLocalDb()
+    const idx = (db.organizaciones || []).findIndex((o) => o.id === id)
+    if (idx === -1) return { success: false, message: 'Organización no encontrada.' }
+
+    const [eliminada] = db.organizaciones.splice(idx, 1)
+    saveLocalDb(db)
+    return { success: true, message: `Organización ${eliminada.nombre} eliminada.` }
+  },
+
+  cambiarNegocioActivo(organizacion) {
+    authState.organizacion = {
+      id: organizacion.id,
+      nombre: organizacion.nombre,
+    }
+    persistSession()
+    return { success: true, message: `Cambiaste al negocio ${organizacion.nombre}.` }
+  },
+}
+
+const TOTAL_MESAS = 12
+
+const normalizarMetodoPago = (metodoPago = 'efectivo') => {
+  const texto = String(metodoPago || '').toLowerCase()
+  if (texto.includes('transf') || texto.includes('qr')) return 'transferencia_qr'
+  if (texto.includes('tarj')) return 'tarjeta'
+  return 'efectivo'
+}
+
+const claveOpcionesItem = (opciones = []) =>
+  JSON.stringify(Array.isArray(opciones) ? [...opciones].map((o) => String(o).trim()).filter(Boolean).sort() : [])
+
+const calcularTotalComanda = (items = []) =>
+  items.reduce((sum, item) => sum + Number(item.precio_unitario || 0) * Number(item.cantidad || 1), 0)
+
+const headersConAuth = (conJson = false) => {
+  const headers = {}
+  if (conJson) headers['Content-Type'] = 'application/json'
+  if (authState.token && !authState.token.startsWith('demo_token_')) {
+    headers.Authorization = `Bearer ${authState.token}`
+  }
+  return headers
+}
+
+// Servicio real de Mesas y Pedidos Activos (sincronizado con catálogo, stock y ventas)
+export const mesasService = {
+  async listarMesas() {
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    const mapaLocal = new Map()
+
+    for (const comanda of db.comandas_activas || []) {
+      if (comanda.organizacion_id === orgId && Array.isArray(comanda.items) && comanda.items.length > 0) {
+        mapaLocal.set(Number(comanda.mesa_numero), comanda)
+      }
+    }
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch('/api/tables', { headers: headersConAuth() })
+        const json = await res.json()
+        if (res.ok && json.success && Array.isArray(json.data)) {
+          for (const remote of json.data) {
+            const num = Number(remote.number)
+            const order = remote.current_order || remote.currentOrder
+            if (!mapaLocal.has(num) && remote.status === 'ocupada' && order && Array.isArray(order.items) && order.items.length > 0) {
+              const itemsNorm = order.items.map((i) => {
+                const precio = Number(i.precio_unitario ?? i.price ?? 0)
+                const cant = Number(i.cantidad ?? i.quantity ?? 1)
+                return {
+                  producto_id: i.producto_id ?? i.id ?? null,
+                  nombre: i.nombre ?? i.name ?? 'Producto',
+                  precio_unitario: precio,
+                  cantidad: cant,
+                  opciones: Array.isArray(i.opciones) ? i.opciones : [],
+                  subtotal: precio * cant,
+                }
+              })
+              mapaLocal.set(num, {
+                id: String(order.id || `cmd_${num}`),
+                numero_pedido: Number(order.id || num),
+                organizacion_id: orgId,
+                mesa_numero: num,
+                hora_ingreso: order.time || '',
+                items: itemsNorm,
+                total: Number(order.total ?? calcularTotalComanda(itemsNorm)),
+                creado_en: remote.created_at || new Date().toISOString(),
+              })
+            }
+          }
+        }
+      } catch {
+        // Fallback local
+      }
+    }
+
+    const mesas = Array.from({ length: TOTAL_MESAS }, (_, idx) => {
+      const numero = idx + 1
+      const comanda = mapaLocal.get(numero) || null
+      return {
+        numero,
+        ocupada: Boolean(comanda && comanda.items?.length > 0),
+        comanda,
+      }
+    })
+
+    return { success: true, data: mesas }
+  },
+
+  async enviarPedido({ mesaNumero, items }) {
+    const mesaNum = Number(mesaNumero)
+    if (!Number.isInteger(mesaNum) || mesaNum < 1 || mesaNum > TOTAL_MESAS) {
+      return { success: false, message: `Número de mesa inválido (debe ser entre 1 y ${TOTAL_MESAS}).` }
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return { success: false, message: 'Agregá al menos un plato del catálogo antes de enviar el pedido.' }
+    }
+
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    const productosMap = new Map(
+      (db.productos || [])
+        .filter((p) => p.organizacion_id === orgId)
+        .map((p) => [String(p.id), p]),
+    )
+
+    if (!Array.isArray(db.comandas_activas)) db.comandas_activas = []
+    const comandaExistente = db.comandas_activas.find(
+      (c) => c.organizacion_id === orgId && Number(c.mesa_numero) === mesaNum,
+    )
+
+    // Sumar cantidades ya cargadas en la mesa para validar contra stock real
+    const cantidadesPorProducto = new Map()
+    for (const prev of comandaExistente?.items || []) {
+      const key = String(prev.producto_id)
+      cantidadesPorProducto.set(key, (cantidadesPorProducto.get(key) || 0) + Number(prev.cantidad || 0))
+    }
+
+    const itemsNormalizados = []
+    for (const raw of items) {
+      const prodId = String(raw.producto_id ?? raw.id ?? '')
+      const cant = Math.max(1, Number(raw.cantidad ?? raw.quantity ?? 1))
+      const prodLocal = productosMap.get(prodId)
+
+      if (prodLocal && prodLocal.activo === false) {
+        return { success: false, message: `"${prodLocal.nombre}" no se encuentra disponible en la carta.` }
+      }
+
+      const nombre = prodLocal?.nombre || String(raw.nombre || raw.name || '').trim()
+      const precioUnitario = prodLocal ? Number(prodLocal.precio) : Number(raw.precio_unitario ?? raw.precio ?? raw.price ?? 0)
+      const stockDisponible = prodLocal ? Number(prodLocal.stock ?? 0) : Number(raw.stock_disponible ?? Infinity)
+      const acumulado = (cantidadesPorProducto.get(prodId) || 0) + cant
+
+      if (Number.isFinite(stockDisponible) && acumulado > stockDisponible) {
+        return {
+          success: false,
+          message: `Stock insuficiente de "${nombre || 'producto'}" (disponible: ${stockDisponible} un.).`,
+        }
+      }
+
+      cantidadesPorProducto.set(prodId, acumulado)
+      const opciones = Array.isArray(raw.opciones) ? raw.opciones.map((o) => String(o).trim()).filter(Boolean) : []
+      itemsNormalizados.push({
+        producto_id: prodId,
+        nombre,
+        precio_unitario: precioUnitario,
+        cantidad: cant,
+        opciones,
+        subtotal: precioUnitario * cant,
+      })
+    }
+
+    let comandaFinal = comandaExistente
+    if (!comandaFinal) {
+      db.ultimo_pedido = (Number(db.ultimo_pedido) || 100) + 1
+      comandaFinal = {
+        id: 'cmd_' + Date.now(),
+        numero_pedido: db.ultimo_pedido,
+        organizacion_id: orgId,
+        mesa_numero: mesaNum,
+        hora_ingreso: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+        items: [],
+        total: 0,
+        creado_en: new Date().toISOString(),
+      }
+      db.comandas_activas.push(comandaFinal)
+    }
+
+    for (const nuevoItem of itemsNormalizados) {
+      const keyNuevo = claveOpcionesItem(nuevoItem.opciones)
+      const existente = comandaFinal.items.find(
+        (it) => String(it.producto_id) === String(nuevoItem.producto_id) && claveOpcionesItem(it.opciones) === keyNuevo,
+      )
+      if (existente) {
+        existente.cantidad += nuevoItem.cantidad
+        existente.subtotal = existente.precio_unitario * existente.cantidad
+      } else {
+        comandaFinal.items.push(nuevoItem)
+      }
+    }
+
+    comandaFinal.total = calcularTotalComanda(comandaFinal.items)
+    saveLocalDb(db)
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        await fetch('/api/orders', {
+          method: 'POST',
+          headers: headersConAuth(true),
+          body: JSON.stringify({ tableNumber: mesaNum, items: itemsNormalizados }),
+        })
+        await fetch(`/api/tables/${mesaNum}/ocupar`, {
+          method: 'POST',
+          headers: headersConAuth(true),
+          body: JSON.stringify({
+            order: {
+              id: comandaFinal.numero_pedido,
+              time: comandaFinal.hora_ingreso,
+              items: comandaFinal.items,
+              total: comandaFinal.total,
+            },
+          }),
+        })
+      } catch {
+        // Ya quedó persistido localmente
+      }
+    }
+
+    return {
+      success: true,
+      message: `Pedido #${comandaFinal.numero_pedido} enviado a cocina para Mesa ${mesaNum}.`,
+      data: comandaFinal,
+    }
+  },
+
+  async quitarItemMesa({ mesaNumero, index }) {
+    const mesaNum = Number(mesaNumero)
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    if (!Array.isArray(db.comandas_activas)) db.comandas_activas = []
+
+    const cmdIdx = db.comandas_activas.findIndex(
+      (c) => c.organizacion_id === orgId && Number(c.mesa_numero) === mesaNum,
+    )
+    if (cmdIdx === -1) {
+      return { success: false, message: 'La mesa no tiene una comanda activa.' }
+    }
+
+    const comanda = db.comandas_activas[cmdIdx]
+    if (index < 0 || index >= comanda.items.length) {
+      return { success: false, message: 'Ítem no encontrado en la comanda.' }
+    }
+
+    comanda.items.splice(index, 1)
+    if (comanda.items.length === 0) {
+      db.comandas_activas.splice(cmdIdx, 1)
+      saveLocalDb(db)
+      if (authState.token && !authState.token.startsWith('demo_token_')) {
+        fetch(`/api/tables/${mesaNum}/liberar`, {
+          method: 'POST',
+          headers: headersConAuth(true),
+          body: JSON.stringify({ cancelar: true }),
+        }).catch(() => {})
+      }
+      return { success: true, mesaLiberada: true, message: `Mesa ${mesaNum} quedó sin ítems y se liberó.` }
+    }
+
+    comanda.total = calcularTotalComanda(comanda.items)
+    saveLocalDb(db)
+    return { success: true, mesaLiberada: false, data: comanda, message: 'Ítem quitado de la comanda.' }
+  },
+
+  async cancelarComandaMesa({ mesaNumero }) {
+    const mesaNum = Number(mesaNumero)
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    if (!Array.isArray(db.comandas_activas)) db.comandas_activas = []
+
+    const idx = db.comandas_activas.findIndex(
+      (c) => c.organizacion_id === orgId && Number(c.mesa_numero) === mesaNum,
+    )
+    if (idx === -1) {
+      return { success: false, message: 'La mesa ya se encuentra libre.' }
+    }
+
+    db.comandas_activas.splice(idx, 1)
+    saveLocalDb(db)
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      fetch(`/api/tables/${mesaNum}/liberar`, {
+        method: 'POST',
+        headers: headersConAuth(true),
+        body: JSON.stringify({ cancelar: true }),
+      }).catch(() => {})
+    }
+
+    return { success: true, message: `Comanda de Mesa ${mesaNum} cancelada.` }
+  },
+
+  async cobrarYLiberarMesa({ mesaNumero, metodoPago = 'efectivo' }) {
+    const mesaNum = Number(mesaNumero)
+    const db = getLocalDb()
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    if (!Array.isArray(db.comandas_activas)) db.comandas_activas = []
+
+    const cmdIdx = db.comandas_activas.findIndex(
+      (c) => c.organizacion_id === orgId && Number(c.mesa_numero) === mesaNum,
+    )
+    if (cmdIdx === -1) {
+      return { success: false, message: `La Mesa ${mesaNum} no tiene un pedido activo para cobrar.` }
+    }
+
+    const comanda = db.comandas_activas[cmdIdx]
+    if (!Array.isArray(comanda.items) || comanda.items.length === 0) {
+      return { success: false, message: 'La comanda no tiene ítems registrados.' }
+    }
+
+    const metodo = normalizarMetodoPago(metodoPago)
+    const totalVenta = calcularTotalComanda(comanda.items)
+    const ventaId = 'vnt_' + Date.now()
+    const nuevaVenta = {
+      id: ventaId,
+      organizacion_id: orgId,
+      mesa_numero: mesaNum,
+      total: totalVenta,
+      metodo_pago: metodo,
+      estado: 'completada',
+      usuario_id: authState.user?.id || 'usr_empleado_1',
+      created_at: new Date().toISOString(),
+      anulado_en: null,
+      anulado_por: null,
+      motivo_anulacion: null,
+    }
+
+    if (!Array.isArray(db.ventas)) db.ventas = []
+    db.ventas.unshift(nuevaVenta)
+
+    if (!Array.isArray(db.detalle_ventas)) db.detalle_ventas = []
+    comanda.items.forEach((item, idx) => {
+      const cantidad = Number(item.cantidad || 1)
+      const precioUnitario = Number(item.precio_unitario || 0)
+      db.detalle_ventas.push({
+        id: `det_${Date.now()}_${idx}`,
+        venta_id: ventaId,
+        producto_id: item.producto_id,
+        cantidad,
+        precio_unitario: precioUnitario,
+        subtotal: precioUnitario * cantidad,
+      })
+
+      const prod = (db.productos || []).find((p) => p.id === item.producto_id && p.organizacion_id === orgId)
+      if (prod) {
+        prod.stock = Math.max(0, Number(prod.stock || 0) - cantidad)
+      }
+    })
+
+    db.comandas_activas.splice(cmdIdx, 1)
+    saveLocalDb(db)
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        await fetch(`/api/tables/${mesaNum}/liberar`, {
+          method: 'POST',
+          headers: headersConAuth(true),
+          body: JSON.stringify({
+            metodo_pago: metodo,
+            organizacion_id: orgId,
+            usuario_id: authState.user?.id,
+          }),
+        })
+      } catch {
+        // Ya quedó registrado localmente
+      }
+    }
+
+    return {
+      success: true,
+      message: `Mesa ${mesaNum} cobrada (${totalVenta.toLocaleString('es-AR')}) y liberada.`,
+      data: { venta: nuevaVenta, comanda },
+    }
+  },
+}
+
 
 

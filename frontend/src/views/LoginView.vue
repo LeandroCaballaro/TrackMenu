@@ -40,12 +40,12 @@ async function iniciarSesion() {
       <div class="absolute -top-[20%] left-1/2 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/20 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
     </div>
 
-    <section class="relative z-10 w-full max-w-md rounded-3xl border border-stone-800/80 bg-[#17120f] p-6 text-white sm:p-8" aria-labelledby="login-title">
+    <section class="relative z-10 w-full max-w-md rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 text-white sm:p-8" aria-labelledby="login-title">
       <div class="flex items-center gap-3">
-        <img :src="logoIcono" alt="TrackMenú" class="h-12 w-12 shrink-0 object-contain" />
-        <div>
+        <img :src="logoIcono" alt="TrackMenú" class="h-11 w-11 sm:h-12 sm:w-12 shrink-0 object-contain" />
+        <div class="min-w-0">
           <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Acceso al Sistema</p>
-          <h1 id="login-title" class="font-girassol text-3xl font-normal text-white">Iniciar sesión</h1>
+          <h1 id="login-title" class="font-girassol text-2xl sm:text-3xl font-normal text-white">Iniciar sesión</h1>
         </div>
       </div>
 

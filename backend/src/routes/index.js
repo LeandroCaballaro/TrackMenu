@@ -5,6 +5,7 @@ import tablesRoutes from './tables.routes.js';
 import ordersRoutes from './orders.routes.js';
 import authRoutes from './auth.routes.js';
 import adminRoutes from './admin.routes.js';
+import superadminRoutes from './superadmin.routes.js';
 
 const apiRouter = Router();
 
@@ -18,5 +19,6 @@ apiRouter.use('/tables', tablesRoutes);
 apiRouter.use('/orders', ordersRoutes);
 apiRouter.use('/auth', authRoutes);
 apiRouter.use('/admin', adminRoutes);
+apiRouter.use('/superadmin', superadminRoutes);
 
 export default apiRouter;
