@@ -6,9 +6,15 @@ import { notFoundHandler, errorHandler } from './middlewares/errorHandler.js';
 
 const app = express();
 
-// Middlewares globales
+// Al publicar hay más de un origen (local y el dominio del frontend
+// desplegado): FRONTEND_URL acepta varios separados por coma.
+const origenes = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origen, cb) => cb(null, !origen || origenes.includes(origen)),
   credentials: true,
 }));
 app.use(morgan('dev'));

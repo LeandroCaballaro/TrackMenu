@@ -3,32 +3,24 @@ import { reactive, computed } from 'vue'
 const STORAGE_SESSION_KEY = 'trackmenu_saas_session'
 const STORAGE_DATA_KEY = 'trackmenu_saas_db'
 
+// Cuentas que entraban sin pasar por el backend. Se quitaron, y también se
+// borran de los navegadores que las tengan guardadas de antes.
+// 'consulta' es un rol real desde la migración 006: la app lo tiene que
+// reconocer, antes lo echaba al recargar.
+const ROLES_ASIGNABLES = ['admin', 'empleado', 'consulta']
+
+const CUENTAS_DEMO = ['admin@demo.com', 'empleado@demo.com']
+
 // Semilla inicial con productos para el negocio por defecto
 const initialMockDatabase = {
   organizaciones: [
     { id: 'org_demo_1', nombre: 'Parrilla Central' },
     { id: 'org_demo_2', nombre: 'Bar & Café Palermo' },
   ],
-  usuarios: [
-    {
-      id: 'usr_admin_1',
-      email: 'admin@demo.com',
-      password: 'admin12345',
-      nombre: 'Carlos Admin',
-      organizacion_id: 'org_demo_1',
-      rol: 'admin',
-      localOnly: true,
-    },
-    {
-      id: 'usr_empleado_1',
-      email: 'empleado@demo.com',
-      password: 'empleado12345',
-      nombre: 'Lucía Empleada',
-      organizacion_id: 'org_demo_1',
-      rol: 'empleado',
-      localOnly: true,
-    },
-  ],
+  // Sin cuentas de demostración: antes había dos (@demo.com) que entraban sin
+  // tocar el backend, así que todo lo que se cargaba con ellas quedaba en este
+  // navegador y no llegaba nunca a la base.
+  usuarios: [],
   productos: [
     {
       id: 'prod_1',
@@ -202,6 +194,10 @@ const initialMockDatabase = {
 }
 
 // Carga o inicializa la base de datos simulada
+// Los datos que no llegan al backend quedan sólo en este navegador: decirlo,
+// porque "guardado correctamente" hacía pensar que estaban en la base.
+const avisoLocal = (mensaje) => `${mensaje}, pero sólo en este navegador: no hay conexión con el servidor.`
+
 const getLocalDb = () => {
   try {
     const raw = localStorage.getItem(STORAGE_DATA_KEY)
@@ -212,21 +208,11 @@ const getLocalDb = () => {
     const db = JSON.parse(raw)
     if (Array.isArray(db.usuarios)) {
       let updated = false
-      const filtrados = db.usuarios.filter((u) => u.rol !== 'consulta')
-      if (filtrados.length !== db.usuarios.length) {
-        db.usuarios = filtrados
+
+      const sinDemo = db.usuarios.filter((u) => !CUENTAS_DEMO.includes(u.email?.toLowerCase()))
+      if (sinDemo.length !== db.usuarios.length) {
+        db.usuarios = sinDemo
         updated = true
-      }
-      for (const seedUser of initialMockDatabase.usuarios) {
-        const existing = db.usuarios.find((u) => u.email?.toLowerCase() === seedUser.email)
-        if (!existing) {
-          db.usuarios.push({ ...seedUser })
-          updated = true
-        } else if (!existing.password) {
-          existing.password = seedUser.password
-          existing.localOnly = true
-          updated = true
-        }
       }
       if (updated) saveLocalDb(db)
     }
@@ -245,25 +231,30 @@ const saveLocalDb = (db) => {
 }
 
 // Estado reactivo global de la sesión (sin autologin si no existe sesión guardada)
-const savedSession = (() => {
+let savedSession = (() => {
   try {
     const item = localStorage.getItem(STORAGE_SESSION_KEY)
-    const parsed = item ? JSON.parse(item) : null
-    if (parsed && parsed.rol === 'consulta') {
-      localStorage.removeItem(STORAGE_SESSION_KEY)
-      return null
-    }
-    return parsed
+    return item ? JSON.parse(item) : null
   } catch {
     return null
   }
 })()
 
+// Si quedó pegada la sesión de una cuenta de demostración, se descarta.
+if (savedSession && CUENTAS_DEMO.includes(savedSession.user?.email?.toLowerCase())) {
+  try {
+    localStorage.removeItem(STORAGE_SESSION_KEY)
+  } catch {
+    // navegador sin almacenamiento: alcanza con no usarla
+  }
+  savedSession = null
+}
+
 export const authState = reactive({
   token: savedSession?.token || null,
   user: savedSession?.user || null,
   organizacion: savedSession?.organizacion || null,
-  rol: savedSession?.rol || null, // 'admin' | 'empleado' | null
+  rol: savedSession?.rol || null, // 'admin' | 'empleado' | 'consulta' | null
   backendConnected: Boolean(savedSession?.token && !String(savedSession.token).startsWith('demo_token_')),
 })
 
@@ -342,7 +333,7 @@ export const authService = {
 
   // Permite simular y cambiar de rol al instante para pruebas y verificación
   cambiarRol(nuevoRol) {
-    if (['admin', 'empleado'].includes(nuevoRol)) {
+    if (ROLES_ASIGNABLES.includes(nuevoRol)) {
       authState.rol = nuevoRol
       persistSession()
     }
@@ -352,21 +343,6 @@ export const authService = {
     const cleanEmail = email.trim().toLowerCase()
     const db = getLocalDb()
     const localUser = db.usuarios.find((u) => u.email?.toLowerCase() === cleanEmail)
-
-    // Si es una cuenta local / de roles de prueba, validamos su contraseña localmente
-    if (localUser && localUser.localOnly) {
-      if (localUser.password && localUser.password !== password) {
-        return { success: false, message: 'Correo o contraseña incorrectos.' }
-      }
-      const org = db.organizaciones.find((o) => o.id === localUser.organizacion_id) || db.organizaciones[0]
-      authState.token = 'demo_token_' + localUser.id
-      authState.user = { id: localUser.id, email: localUser.email, nombre: localUser.nombre }
-      authState.organizacion = org
-      authState.rol = localUser.rol || 'admin'
-      authState.backendConnected = false
-      persistSession()
-      return { success: true, message: 'Inicio de sesión exitoso' }
-    }
 
     // Intento con backend real (Supabase)
     try {
@@ -578,7 +554,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto creado correctamente y guardado en tu organización.',
+      message: avisoLocal('Producto creado correctamente'),
       data: nuevo,
     }
   },
@@ -647,7 +623,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto modificado correctamente.',
+      message: avisoLocal('Producto modificado correctamente'),
       data: actualizado,
     }
   },
@@ -742,7 +718,7 @@ export const productosService = {
 
     return {
       success: true,
-      message: 'Producto eliminado correctamente de tu catálogo.',
+      message: avisoLocal('Producto eliminado correctamente'),
     }
   },
 }
@@ -943,7 +919,7 @@ export const adminService = {
 
     return {
       success: true,
-      message: 'Ticket anulado correctamente y stock restituido al inventario.',
+      message: avisoLocal('Ticket anulado y stock restituido'),
     }
   },
 
@@ -1031,7 +1007,7 @@ export const adminService = {
       }
     }
 
-    if (!['admin', 'empleado'].includes(rol)) {
+    if (!ROLES_ASIGNABLES.includes(rol)) {
       return { success: false, message: 'El rol seleccionado no es válido.' }
     }
 
@@ -1121,7 +1097,7 @@ export const adminService = {
       return { success: false, message: 'Solo el administrador puede cambiar permisos.' }
     }
 
-    if (!['admin', 'empleado'].includes(nuevoRol)) {
+    if (!ROLES_ASIGNABLES.includes(nuevoRol)) {
       return { success: false, message: 'Rol inválido.' }
     }
 
@@ -1131,17 +1107,24 @@ export const adminService = {
 
     if (authState.token && !authState.token.startsWith('demo_token_')) {
       try {
-        const res = await fetch('/api/admin/usuarios/rol', {
-          method: 'POST',
+        // /api/miembros acepta los tres roles; /api/admin/usuarios/rol sólo
+        // admin y empleado, así que no podía dejar a nadie en sólo lectura.
+        const res = await fetch(`/api/miembros/${usuarioId}`, {
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${authState.token}`,
           },
-          body: JSON.stringify({ usuario_id: usuarioId, nuevo_rol: nuevoRol }),
+          body: JSON.stringify({ rol: nuevoRol }),
         })
         const json = await res.json()
         if (!res.ok && res.status !== 503) {
           return { success: false, message: json.message || 'No se pudo actualizar el rol.' }
+        }
+        // Sin este return seguía al respaldo local y, al no encontrar ahí al
+        // usuario, avisaba "Usuario no encontrado" pese a haberlo cambiado.
+        if (res.ok) {
+          return { success: true, message: json.message || `Permiso actualizado a ${nuevoRol}.` }
         }
       } catch {
         // Fallback local
@@ -1205,3 +1188,84 @@ export const adminService = {
 }
 
 
+
+// Cobro de mesa. El respaldo local existe sólo para no perder la comanda si el
+// servidor no responde; el aviso de "sin conexión" ya lo muestra la pantalla.
+export const ventasService = {
+  async cobrarMesa({ mesa_numero, metodo_pago, items }) {
+    if (!['admin', 'empleado'].includes(authState.rol)) {
+      return { success: false, message: 'Acceso denegado: tu rol no puede cobrar mesas.' }
+    }
+
+    // La pantalla ofrece "Transferencia"; la base guarda 'transferencia_qr'.
+    const metodo = String(metodo_pago || '').toLowerCase().includes('transf')
+      ? 'transferencia_qr'
+      : String(metodo_pago || '').toLowerCase()
+
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('La venta no se pudo registrar') }
+    }
+
+    try {
+      const res = await fetch('/api/ventas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ mesa_numero, metodo_pago: metodo, items }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) {
+        return { success: true, message: json.message, data: json.data }
+      }
+      return { success: false, message: json.message, errors: json.errors }
+    } catch {
+      return { success: false, message: avisoLocal('La venta no se pudo registrar') }
+    }
+  },
+}
+
+// Comandas abiertas por mesa. Sin backend no hay respaldo local: una comanda
+// que sólo existe en un navegador no le sirve a nadie del equipo.
+export const comandasService = {
+  async listar() {
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('No se pudieron leer las comandas'), data: [] }
+    }
+    try {
+      const res = await fetch('/api/comandas', {
+        headers: { Authorization: `Bearer ${authState.token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json.success) return { success: true, data: json.data }
+      return { success: false, message: json.message, data: [] }
+    } catch {
+      return { success: false, message: avisoLocal('No se pudieron leer las comandas'), data: [] }
+    }
+  },
+
+  async enviarPedido({ mesa_numero, items }) {
+    if (!['admin', 'empleado'].includes(authState.rol)) {
+      return { success: false, message: 'Acceso denegado: tu rol no puede tomar pedidos.' }
+    }
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('El pedido no se pudo enviar') }
+    }
+    try {
+      const res = await fetch('/api/comandas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ mesa_numero, items }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) return { success: true, message: json.message, data: json.data }
+      return { success: false, message: json.message, errors: json.errors }
+    } catch {
+      return { success: false, message: avisoLocal('El pedido no se pudo enviar') }
+    }
+  },
+}

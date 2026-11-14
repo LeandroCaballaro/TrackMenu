@@ -310,7 +310,7 @@ onMounted(() => {
         </div>
 
         <!-- Botón Crear Nuevo Registro -->
-        <div>
+        <div v-if="authState.canEdit">
           <button type="button" @click="abrirNuevoProducto"
             class="flex items-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
             <Plus :size="16" />
@@ -469,7 +469,7 @@ onMounted(() => {
                 <td class="py-3 px-4 text-right">
                   <div class="flex items-center justify-end gap-1.5">
                     <!-- Botón Modificar (Admin y Empleado) -->
-                    <button type="button"
+                    <button v-if="authState.canEdit" type="button"
                       @click="abrirEditarProducto(producto)"
                       class="flex items-center gap-1 rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-1.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white"
                       title="Modificar registro">

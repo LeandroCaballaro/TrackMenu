@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
-import { authState } from '@/services/api'
+import { authState, productosService, ventasService, comandasService } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus, ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft,
 } from 'lucide-vue-next'
@@ -17,7 +17,7 @@ const paymentOptions = [
 
 const burgerImage = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-qw3nfbnetm1rXMnXgRGCZbDkTOypHG.png'
 
-const products = [
+const productosDeEjemplo = [
   {
     id: 1,
     name: 'Burger clásica',
@@ -59,6 +59,45 @@ const products = [
     image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=500&q=80',
   },
 ]
+// La carta sale de la base: estos productos de ejemplo quedan sólo para la
+// portada, cuando todavía no hay sesión con la que leer el menú real.
+const products = ref(productosDeEjemplo)
+const cargandoCarta = ref(false)
+const errorCarta = ref("")
+
+const cargarCarta = async () => {
+  if (!authState.token) return
+  cargandoCarta.value = true
+  errorCarta.value = ""
+
+  const res = await productosService.listar({ activo: true, orden: "nombre", dir: "asc", limite: 100 })
+
+  if (!res.success) {
+    errorCarta.value = res.message || "No se pudo cargar la carta."
+  } else {
+    products.value = res.data.map((p) => ({
+      id: p.id,
+      name: p.nombre,
+      description: p.descripcion || "",
+      price: Number(p.precio),
+      category: "Carta",
+      image: p.imagen_url || burgerImage,
+    }))
+    cart.value = []
+    // sin productos activos la carta queda vacía, pero la pantalla no se rompe
+    category.value = categorias.value[0] ?? ""
+  }
+
+  cargandoCarta.value = false
+}
+
+onMounted(async () => {
+  await Promise.all([cargarCarta(), cargarComandas()])
+})
+watch(() => authState.token, async () => {
+  await Promise.all([cargarCarta(), cargarComandas()])
+})
+
 
 const formatPrice = (price) => `$ ${price.toLocaleString('es-AR')}`
 
@@ -75,26 +114,35 @@ watch(() => route.query.vista, (nuevaVista) => {
   }
 })
 const category = ref('Plato Principal')
-const cart = ref([1])
+const cart = ref([])
 const selected = ref(null)
 const orderSent = ref(false)
 const mobileCartOpen = ref(false)
-const occupied = ref([4, 7])
+const occupied = computed(() => comandas.value.map((c) => c.mesa_numero))
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
+// Sin conexión con el backend la carta no sale de la base: avisarlo.
+const modoLocal = computed(() => Boolean(authState.user) && !authState.backendConnected)
+
+// El router manda acá con ?denegado=true cuando el rol no alcanza; sin esto
+// el usuario aparecía en otra pantalla sin ninguna explicación.
+const accesoDenegado = computed(() => route.query.denegado === 'true')
+
+const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
+
 const visibleProducts = computed(() => {
-  return products.filter((product) => product.category === category.value)
+  return products.value.filter((product) => product.category === category.value)
 })
 
 const cartProducts = computed(() => {
-  return cart.value.map((id) => products.find((product) => product.id === id)).filter(Boolean)
+  return cart.value.map((id) => products.value.find((product) => product.id === id)).filter(Boolean)
 })
 
 const cartItems = computed(() => {
   const grouped = new Map()
   for (const id of cart.value) {
-    const product = products.find((p) => p.id === id)
+    const product = products.value.find((p) => p.id === id)
     if (!product) continue
     if (!grouped.has(id)) {
       grouped.set(id, { product, qty: 0, subtotal: 0 })
@@ -138,59 +186,102 @@ const removeAllFromCart = (id) => {
   }
 }
 
-const sendOrder = () => {
-  orderSent.value = true
-  if (!occupied.value.includes(4)) {
-    occupied.value.push(4)
-  }
+// La comanda que ve el cajero salía escrita a mano en la plantilla (siempre
+// "1x Burger clásica + 1x Papas, $2.840"), así que no tenía relación con lo que
+// el cliente había pedido ni con lo que después se cobraba.
+// Las comandas viven en la base: antes estaban en memoria, había una sola
+// mesa y se perdían al recargar.
+const comandas = ref([])
+const mesaDelPedido = ref(1)
+const enviando = ref(false)
+const avisoPedido = ref("")
+
+const cargarComandas = async () => {
+  if (!authState.token) return
+  const res = await comandasService.listar()
+  if (res.success) comandas.value = res.data
 }
+
+const sendOrder = async () => {
+  if (enviando.value || cartItems.value.length === 0) return
+  avisoPedido.value = ""
+  enviando.value = true
+
+  const res = await comandasService.enviarPedido({
+    mesa_numero: mesaDelPedido.value,
+    items: cartItems.value.map((item) => ({ producto_id: item.product.id, cantidad: item.qty })),
+  })
+  enviando.value = false
+
+  if (!res.success) {
+    avisoPedido.value = res.message || "No se pudo enviar el pedido."
+    return
+  }
+
+  avisoPedido.value = res.message
+  orderSent.value = true
+  cart.value = []
+  await cargarComandas()
+}
+
+const comandaDeLaMesa = computed(() => comandas.value.find((c) => c.mesa_numero === selectedTable.value) || null)
+const comandaActiva = computed(() => comandaDeLaMesa.value?.items || [])
+const totalComanda = computed(() => comandaDeLaMesa.value?.total || 0)
 
 const selectCategory = (item) => {
   category.value = item
 }
 
-const freeTable = () => {
-  // Registra la venta y comanda liquidada para que impacte en tiempo real en el Dashboard
-  try {
-    const dbRaw = localStorage.getItem('trackmenu_saas_db')
-    if (dbRaw) {
-      const db = JSON.parse(dbRaw)
-      if (!db.ventas) db.ventas = []
-      const metodo = payment.value.toLowerCase().includes('transf') ? 'transferencia_qr' : payment.value.toLowerCase()
-      const nuevaVentaId = 'vnt_' + Date.now().toString().slice(-6)
-      
-      db.ventas.unshift({
-        id: nuevaVentaId,
-        organizacion_id: authState.organizacion?.id || 'org_demo_1',
-        mesa_numero: selectedTable.value,
-        total: 2840,
-        metodo_pago: metodo,
-        estado: 'completada',
-        usuario_id: authState.user?.id || 'usr_empleado_1',
-        created_at: new Date().toISOString(),
-        anulado_en: null,
-        anulado_por: null,
-        motivo_anulacion: null,
-      })
+const cobrando = ref(false)
+const avisoCobro = ref('')
 
-      if (!db.detalle_ventas) db.detalle_ventas = []
-      db.detalle_ventas.push(
-        { id: 'det_' + Date.now() + '_1', venta_id: nuevaVentaId, producto_id: 'prod_1', cantidad: 1, precio_unitario: 1890, subtotal: 1890 },
-        { id: 'det_' + Date.now() + '_2', venta_id: nuevaVentaId, producto_id: 'prod_2', cantidad: 1, precio_unitario: 950, subtotal: 950 }
-      )
+// Esto escribía la venta en el localStorage del navegador, con un total fijo de
+// $2840 y dos productos inventados: el panel de ventas y los KPIs nunca veían
+// nada y no había ningún ticket que anular.
+const freeTable = async () => {
+  if (cobrando.value) return
+  avisoCobro.value = ''
 
-      localStorage.setItem('trackmenu_saas_db', JSON.stringify(db))
-    }
-  } catch (err) {
-    console.error('Error registrando venta al liberar mesa:', err)
+  const items = comandaActiva.value.map((linea) => ({ producto_id: linea.producto_id, cantidad: linea.cantidad }))
+  if (items.length === 0) {
+    avisoCobro.value = 'No hay nada para cobrar en esta mesa.'
+    return
   }
 
-  occupied.value = occupied.value.filter((table) => table !== selectedTable.value)
+  cobrando.value = true
+  const res = await ventasService.cobrarMesa({
+    mesa_numero: selectedTable.value,
+    metodo_pago: payment.value,
+    items,
+  })
+  cobrando.value = false
+
+  if (!res.success) {
+    avisoCobro.value = res.message || 'No se pudo registrar la venta.'
+    return
+  }
+
+  avisoCobro.value = `Cobrado $${Number(res.data.total).toLocaleString('es-AR')} en la mesa ${selectedTable.value}.`
+  cart.value = []
+  orderSent.value = false
+  await Promise.all([cargarCarta(), cargarComandas()])
 }
 </script>
 
 <template>
   <main class="relative z-0 min-h-dvh overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+    <p v-if="accesoDenegado" role="alert"
+      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
+      No tenés permiso para entrar a esa pantalla con tu rol ({{ route.query.rol || authState.rol }}).
+    </p>
+    <p v-if="modoLocal" role="status"
+      class="relative z-20 w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
+      Sin conexión con el servidor: la carta no se está leyendo de la base de datos.
+    </p>
+    <p v-else-if="errorCarta" role="alert"
+      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
+      {{ errorCarta }}
+    </p>
     <!-- Ambient glow background decoration -->
     <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-40">
       <div class="absolute -top-[20%] left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/15 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
@@ -206,14 +297,19 @@ const freeTable = () => {
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e] sm:text-xs">Escanea y elegí</p>
             <h1 class="mt-0.5 font-serif text-2xl font-bold tracking-tight text-white sm:mt-1 sm:text-4xl">Trackea tu Menú</h1>
           </div>
-          <span class="shrink-0 rounded-full bg-[#e58a4e] px-3.5 py-1.5 text-xs font-bold text-[#190d05]">
-            Mesa 4
-          </span>
+          <label class="shrink-0 rounded-full bg-[#e58a4e] px-3 py-1.5 text-xs font-bold text-[#190d05]">
+            <span class="sr-only">Mesa del pedido</span>
+            Mesa
+            <select v-model.number="mesaDelPedido"
+              class="ml-1 rounded bg-transparent font-bold text-[#190d05] outline-none">
+              <option v-for="n in 12" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </label>
         </div>
 
         <!-- Categories -->
         <div class="no-scrollbar mb-5 flex items-center gap-2 overflow-x-auto touch-pan-x sm:mb-6 sm:gap-2.5" role="tablist">
-          <button v-for="item in ['Plato Principal', 'Bebidas', 'Postres']" :key="item" type="button"
+          <button v-for="item in categorias" :key="item" type="button"
             @click="selectCategory(item)"
             class="min-h-[40px] whitespace-nowrap rounded-full px-4 sm:px-5 py-2 text-xs font-bold transition duration-150 active:scale-[0.97]"
             :class="category === item ? 'bg-[#e58a4e] text-[#190d05]' : 'bg-[#17120f] border border-white/5 text-stone-400 hover:text-stone-200 hover:bg-[#221a15]'">
@@ -273,7 +369,7 @@ const freeTable = () => {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Tu pedido</p>
-            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa 4</h2>
+            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa {{ mesaDelPedido }}</h2>
           </div>
           <div class="flex items-center gap-2">
             <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-[#221a15] text-[#e58a4e]">
@@ -335,11 +431,14 @@ const freeTable = () => {
             <span class="text-xl font-bold tabular-nums text-white">{{ formatPrice(total) }}</span>
           </div>
 
-          <button type="button" @click="sendOrder" :disabled="!cart.length"
+          <button type="button" @click="sendOrder" :disabled="!cart.length || enviando"
             class="mt-5 flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
-            <span>Enviar pedido a cocina</span>
+            <span>{{ enviando ? 'Enviando…' : 'Enviar pedido a cocina' }}</span>
             <ArrowRight :size="16" />
           </button>
+          <p v-if="avisoPedido" role="status" class="mt-3 text-center text-xs font-semibold text-stone-300">
+            {{ avisoPedido }}
+          </p>
           <p class="mt-3 text-center text-[11px] leading-relaxed text-stone-500">
             Al enviar, la mesa queda bloqueada temporalmente para evitar pedidos duplicados.
           </p>
@@ -420,23 +519,22 @@ const freeTable = () => {
             <div class="mt-6 rounded-2xl border border-white/5 bg-[#110d0b] p-4">
               <div class="flex items-center justify-between text-xs text-stone-400">
                 <span class="flex items-center gap-1.5">
-                  <Clock3 :size="14" class="text-stone-500" /> Ingreso 20:14
+                  <Clock3 :size="14" class="text-stone-500" /> Mesa {{ selectedTable }}
                 </span>
-                <span class="font-medium text-stone-400">Pedido #104</span>
+                <span class="font-medium text-stone-400">{{ comandaActiva.length }} ítem(s)</span>
               </div>
               <div class="mt-4 space-y-3">
-                <div class="flex justify-between text-sm">
-                  <span class="text-stone-200"><b class="text-white">1x</b> Burger clásica</span>
-                  <span class="font-bold text-white">{{ formatPrice(1890) }}</span>
+                <div v-for="linea in comandaActiva" :key="linea.producto_id" class="flex justify-between text-sm">
+                  <span class="text-stone-200"><b class="text-white">{{ linea.cantidad }}x</b> {{ linea.nombre }}</span>
+                  <span class="font-bold text-white">{{ formatPrice(linea.precio * linea.cantidad) }}</span>
                 </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-stone-200"><b class="text-white">1x</b> Papas a la piedra</span>
-                  <span class="font-bold text-white">{{ formatPrice(950) }}</span>
-                </div>
+                <p v-if="comandaActiva.length === 0" class="text-sm text-stone-400">
+                  Esta mesa no tiene ninguna comanda enviada todavía.
+                </p>
               </div>
               <div class="mt-4 flex justify-between border-t border-stone-800/80 pt-3 text-base font-bold">
                 <span class="text-stone-300">Total</span>
-                <span class="text-white text-lg">{{ formatPrice(2840) }}</span>
+                <span class="text-white text-lg">{{ formatPrice(totalComanda) }}</span>
               </div>
             </div>
 
@@ -449,11 +547,16 @@ const freeTable = () => {
               />
             </div>
 
-            <button type="button" @click="freeTable"
-              class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] shadow-lg shadow-[#e58a4e]/10 transition hover:bg-[#ee975e] active:scale-[0.99]">
-              <CircleDollarSign :size="17" /> Cobrar y liberar mesa
+            <button type="button" @click="freeTable" :disabled="cobrando"
+              class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] shadow-lg shadow-[#e58a4e]/10 transition hover:bg-[#ee975e] active:scale-[0.99] disabled:opacity-60">
+              <CircleDollarSign :size="17" /> {{ cobrando ? 'Cobrando…' : 'Cobrar y liberar mesa' }}
             </button>
+
           </template>
+
+          <p v-if="avisoCobro" role="status" class="mt-4 text-center text-xs font-semibold text-stone-300">
+            {{ avisoCobro }}
+          </p>
 
           <div v-else class="mt-10 text-center">
             <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#204933] bg-[#163223] text-[#4ade80]">
@@ -545,7 +648,7 @@ const freeTable = () => {
               {{ cart.length }}
             </span>
             <div class="min-w-0">
-              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Tu pedido · Mesa 4</p>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Tu pedido · Mesa {{ mesaDelPedido }}</p>
               <p class="text-base font-bold tabular-nums text-white">{{ formatPrice(total) }}</p>
             </div>
           </div>

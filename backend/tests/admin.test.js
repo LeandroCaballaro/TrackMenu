@@ -21,8 +21,16 @@ test('validarDatosUsuario rechaza nombre/email inválidos, contraseñas cortas y
   assert.equal(validarDatosUsuario({ nombre: '', email: 'a@b.com', password: 'password1' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'no-es-email', password: 'password1' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: '123' }).valido, false);
-  assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol: 'consulta' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol: 'superadmin' }).valido, false);
+});
+
+// 'consulta' pasó a ser un rol asignable: existe en la base desde la migración
+// 006 y lo usan /api/miembros y las invitaciones. Dejarlo afuera del panel
+// hacía que ese usuario apareciera sin rol y no se lo pudiera asignar.
+test('validarDatosUsuario acepta los tres roles del sistema', () => {
+  for (const rol of ['admin', 'empleado', 'consulta']) {
+    assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol }).valido, true, rol);
+  }
 });
 
 test('validarDatosUsuario normaliza nombre y email correctamente', () => {
@@ -57,13 +65,20 @@ test('requireRole("admin") rechaza empleado con 403 y permite admin', () => {
   assert.equal(llamadoAdmin, true);
 });
 
-test('authRoutes no expone el endpoint público /register', () => {
+// Hay dos formas de dar de alta a un usuario, y las dos quedan:
+// /register para que un negocio nuevo abra su cuenta (todavía no existe un
+// admin que lo cree) y POST /api/admin/usuarios para que el admin sume a su
+// equipo. Quien se registra sin código de invitación funda su propia
+// organización: no entra a ninguna existente.
+test('authRoutes expone el alta propia y las rutas de sesión', () => {
   const paths = authRoutes.stack
     .filter((layer) => layer.route)
     .map((layer) => layer.route.path);
 
-  assert.equal(paths.includes('/register'), false);
+  assert.equal(paths.includes('/register'), true);
   assert.equal(paths.includes('/login'), true);
   assert.equal(paths.includes('/me'), true);
+  assert.equal(paths.includes('/fundar-organizacion'), true);
+  assert.equal(paths.includes('/aceptar-invitacion'), true);
 });
 
