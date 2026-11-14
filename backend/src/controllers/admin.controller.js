@@ -3,7 +3,10 @@ import { supabase } from '../config/supabase.js';
 // Controlador del Módulo de Super-Administración
 // Solo accesible por usuarios con rol 'admin' de su respectiva organización.
 
-const ROLES_VALIDOS = ['admin', 'empleado'];
+// El rol de sólo lectura existe en la base desde la migración 006 y lo usan
+// /api/miembros y las invitaciones: dejarlo afuera de acá hacía que el panel
+// no pudiera ni mostrar ni asignar ese rol.
+const ROLES_VALIDOS = ['admin', 'empleado', 'consulta'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ACCIONES_AUDITORIA = ['anulacion_ticket', 'cambio_precio', 'baja_producto', 'cambio_rol', 'ajuste_stock'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -449,7 +452,7 @@ export const cambiarRolUsuario = async (req, res, next) => {
     if (!ROLES_VALIDOS.includes(nuevo_rol)) {
       return res.status(400).json({
         success: false,
-        message: 'Rol inválido. Debe ser: admin o empleado',
+        message: `Rol inválido. Debe ser uno de: ${ROLES_VALIDOS.join(', ')}`,
       });
     }
 

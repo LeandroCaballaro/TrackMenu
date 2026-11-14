@@ -34,6 +34,10 @@ cd backend && npm run test:e2e:admin
 cd backend && npm run test:e2e:ventas
 ```
 
+```bash
+cd backend && npm run test:e2e:comandas
+```
+
 Los dos últimos necesitan el backend levantado (`npm run dev`) y las variables
 de entorno que indica `FUNCION-PRINCIPAL.md`.
 
@@ -164,3 +168,18 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | I9 🤖 | Anular como empleado / como admin | `403` y `200` con stock restituido |
 | I10 🤖 | Anular dos veces el mismo ticket | `400` |
 | I11 🤖 | Revisar la auditoría | Queda la anulación registrada |
+
+
+## J. Comandas por mesa
+
+| # | Pasos | Resultado esperado |
+|---|---|---|
+| J1 | En la carta, elegir mesa en el selector y enviar el pedido | "Pedido recibido"; esa mesa aparece ocupada en el panel |
+| J2 | Repetir con otra mesa | Las dos quedan ocupadas a la vez |
+| J3 | Recargar la página | Las comandas siguen ahí: están en la base, no en el navegador |
+| J4 🤖 | Enviar un segundo pedido a una mesa ya abierta | Se suma a la misma comanda, no abre otra |
+| J5 🤖 | Tomar un pedido como `consulta` | `403`; pero sí ve el mapa de mesas |
+| J6 🤖 | Pedido sin datos, mesa 0, cantidad 0, producto de otra organización | `400`, `400`, `400` y `404` |
+| J7 | Elegir una mesa ocupada en el mapa y cobrarla | "Cobrado $X en la mesa N"; esa mesa queda libre y las otras siguen ocupadas |
+| J8 🤖 | Cancelar una comanda; cancelarla de nuevo | `200` y después `404` |
+| J9 🤖 | Ver las comandas desde otra organización | No aparecen |

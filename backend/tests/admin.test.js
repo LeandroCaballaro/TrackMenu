@@ -21,8 +21,16 @@ test('validarDatosUsuario rechaza nombre/email inválidos, contraseñas cortas y
   assert.equal(validarDatosUsuario({ nombre: '', email: 'a@b.com', password: 'password1' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'no-es-email', password: 'password1' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: '123' }).valido, false);
-  assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol: 'consulta' }).valido, false);
   assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol: 'superadmin' }).valido, false);
+});
+
+// 'consulta' pasó a ser un rol asignable: existe en la base desde la migración
+// 006 y lo usan /api/miembros y las invitaciones. Dejarlo afuera del panel
+// hacía que ese usuario apareciera sin rol y no se lo pudiera asignar.
+test('validarDatosUsuario acepta los tres roles del sistema', () => {
+  for (const rol of ['admin', 'empleado', 'consulta']) {
+    assert.equal(validarDatosUsuario({ nombre: 'Ana', email: 'ana@demo.com', password: 'password1', rol }).valido, true, rol);
+  }
 });
 
 test('validarDatosUsuario normaliza nombre y email correctamente', () => {

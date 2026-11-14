@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
-import { authState, productosService, ventasService } from '@/services/api'
+import { authState, productosService, ventasService, comandasService } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus, ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft,
 } from 'lucide-vue-next'
@@ -91,8 +91,12 @@ const cargarCarta = async () => {
   cargandoCarta.value = false
 }
 
-onMounted(cargarCarta)
-watch(() => authState.token, cargarCarta)
+onMounted(async () => {
+  await Promise.all([cargarCarta(), cargarComandas()])
+})
+watch(() => authState.token, async () => {
+  await Promise.all([cargarCarta(), cargarComandas()])
+})
 
 
 const formatPrice = (price) => `$ ${price.toLocaleString('es-AR')}`
@@ -114,7 +118,7 @@ const cart = ref([])
 const selected = ref(null)
 const orderSent = ref(false)
 const mobileCartOpen = ref(false)
-const occupied = ref([])
+const occupied = computed(() => comandas.value.map((c) => c.mesa_numero))
 const selectedTable = ref(4)
 const payment = ref('Efectivo')
 
@@ -185,30 +189,44 @@ const removeAllFromCart = (id) => {
 // La comanda que ve el cajero salía escrita a mano en la plantilla (siempre
 // "1x Burger clásica + 1x Papas, $2.840"), así que no tenía relación con lo que
 // el cliente había pedido ni con lo que después se cobraba.
-const comandas = ref({})
-const MESA_DEL_CLIENTE = 4
+// Las comandas viven en la base: antes estaban en memoria, había una sola
+// mesa y se perdían al recargar.
+const comandas = ref([])
+const mesaDelPedido = ref(1)
+const enviando = ref(false)
+const avisoPedido = ref("")
 
-const sendOrder = () => {
-  if (cartItems.value.length === 0) return
-  comandas.value = {
-    ...comandas.value,
-    [MESA_DEL_CLIENTE]: cartItems.value.map((item) => ({
-      producto_id: item.product.id,
-      nombre: item.product.name,
-      cantidad: item.qty,
-      precio: item.product.price,
-    })),
-  }
-  orderSent.value = true
-  if (!occupied.value.includes(MESA_DEL_CLIENTE)) {
-    occupied.value.push(MESA_DEL_CLIENTE)
-  }
+const cargarComandas = async () => {
+  if (!authState.token) return
+  const res = await comandasService.listar()
+  if (res.success) comandas.value = res.data
 }
 
-const comandaActiva = computed(() => comandas.value[selectedTable.value] || [])
-const totalComanda = computed(() =>
-  comandaActiva.value.reduce((acc, linea) => acc + linea.precio * linea.cantidad, 0),
-)
+const sendOrder = async () => {
+  if (enviando.value || cartItems.value.length === 0) return
+  avisoPedido.value = ""
+  enviando.value = true
+
+  const res = await comandasService.enviarPedido({
+    mesa_numero: mesaDelPedido.value,
+    items: cartItems.value.map((item) => ({ producto_id: item.product.id, cantidad: item.qty })),
+  })
+  enviando.value = false
+
+  if (!res.success) {
+    avisoPedido.value = res.message || "No se pudo enviar el pedido."
+    return
+  }
+
+  avisoPedido.value = res.message
+  orderSent.value = true
+  cart.value = []
+  await cargarComandas()
+}
+
+const comandaDeLaMesa = computed(() => comandas.value.find((c) => c.mesa_numero === selectedTable.value) || null)
+const comandaActiva = computed(() => comandaDeLaMesa.value?.items || [])
+const totalComanda = computed(() => comandaDeLaMesa.value?.total || 0)
 
 const selectCategory = (item) => {
   category.value = item
@@ -244,13 +262,9 @@ const freeTable = async () => {
   }
 
   avisoCobro.value = `Cobrado $${Number(res.data.total).toLocaleString('es-AR')} en la mesa ${selectedTable.value}.`
-  const restantes = { ...comandas.value }
-  delete restantes[selectedTable.value]
-  comandas.value = restantes
   cart.value = []
   orderSent.value = false
-  occupied.value = occupied.value.filter((table) => table !== selectedTable.value)
-  await cargarCarta()
+  await Promise.all([cargarCarta(), cargarComandas()])
 }
 </script>
 
@@ -283,9 +297,14 @@ const freeTable = async () => {
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e] sm:text-xs">Escanea y elegí</p>
             <h1 class="mt-0.5 font-serif text-2xl font-bold tracking-tight text-white sm:mt-1 sm:text-4xl">Trackea tu Menú</h1>
           </div>
-          <span class="shrink-0 rounded-full bg-[#e58a4e] px-3.5 py-1.5 text-xs font-bold text-[#190d05]">
-            Mesa 4
-          </span>
+          <label class="shrink-0 rounded-full bg-[#e58a4e] px-3 py-1.5 text-xs font-bold text-[#190d05]">
+            <span class="sr-only">Mesa del pedido</span>
+            Mesa
+            <select v-model.number="mesaDelPedido"
+              class="ml-1 rounded bg-transparent font-bold text-[#190d05] outline-none">
+              <option v-for="n in 12" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </label>
         </div>
 
         <!-- Categories -->
@@ -350,7 +369,7 @@ const freeTable = async () => {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Tu pedido</p>
-            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa 4</h2>
+            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa {{ mesaDelPedido }}</h2>
           </div>
           <div class="flex items-center gap-2">
             <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-[#221a15] text-[#e58a4e]">
@@ -412,11 +431,14 @@ const freeTable = async () => {
             <span class="text-xl font-bold tabular-nums text-white">{{ formatPrice(total) }}</span>
           </div>
 
-          <button type="button" @click="sendOrder" :disabled="!cart.length"
+          <button type="button" @click="sendOrder" :disabled="!cart.length || enviando"
             class="mt-5 flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
-            <span>Enviar pedido a cocina</span>
+            <span>{{ enviando ? 'Enviando…' : 'Enviar pedido a cocina' }}</span>
             <ArrowRight :size="16" />
           </button>
+          <p v-if="avisoPedido" role="status" class="mt-3 text-center text-xs font-semibold text-stone-300">
+            {{ avisoPedido }}
+          </p>
           <p class="mt-3 text-center text-[11px] leading-relaxed text-stone-500">
             Al enviar, la mesa queda bloqueada temporalmente para evitar pedidos duplicados.
           </p>
@@ -626,7 +648,7 @@ const freeTable = async () => {
               {{ cart.length }}
             </span>
             <div class="min-w-0">
-              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Tu pedido · Mesa 4</p>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Tu pedido · Mesa {{ mesaDelPedido }}</p>
               <p class="text-base font-bold tabular-nums text-white">{{ formatPrice(total) }}</p>
             </div>
           </div>

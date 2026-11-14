@@ -141,6 +141,15 @@ export const cobrarMesa = async (req, res, next) => {
     );
     if (errorMovimientos) avisos.push('No se pudo registrar el movimiento de stock');
 
+    // La mesa queda libre: sin esto la comanda seguía abierta después de cobrar.
+    const { error: errorComanda } = await db
+      .from('comandas')
+      .update({ estado: 'cobrada', venta_id: venta.id, cerrada_en: new Date().toISOString() })
+      .eq('organizacion_id', orgId)
+      .eq('mesa_numero', mesa)
+      .eq('estado', 'abierta');
+    if (errorComanda) avisos.push('No se pudo cerrar la comanda de la mesa');
+
     res.status(201).json({
       success: true,
       message: 'Venta registrada correctamente',

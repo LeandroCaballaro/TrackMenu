@@ -1225,3 +1225,47 @@ export const ventasService = {
     }
   },
 }
+
+// Comandas abiertas por mesa. Sin backend no hay respaldo local: una comanda
+// que sólo existe en un navegador no le sirve a nadie del equipo.
+export const comandasService = {
+  async listar() {
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('No se pudieron leer las comandas'), data: [] }
+    }
+    try {
+      const res = await fetch('/api/comandas', {
+        headers: { Authorization: `Bearer ${authState.token}` },
+      })
+      const json = await res.json()
+      if (res.ok && json.success) return { success: true, data: json.data }
+      return { success: false, message: json.message, data: [] }
+    } catch {
+      return { success: false, message: avisoLocal('No se pudieron leer las comandas'), data: [] }
+    }
+  },
+
+  async enviarPedido({ mesa_numero, items }) {
+    if (!['admin', 'empleado'].includes(authState.rol)) {
+      return { success: false, message: 'Acceso denegado: tu rol no puede tomar pedidos.' }
+    }
+    if (!authState.token || authState.token.startsWith('demo_token_')) {
+      return { success: false, message: avisoLocal('El pedido no se pudo enviar') }
+    }
+    try {
+      const res = await fetch('/api/comandas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authState.token}`,
+        },
+        body: JSON.stringify({ mesa_numero, items }),
+      })
+      const json = await res.json()
+      if (res.ok && json.success) return { success: true, message: json.message, data: json.data }
+      return { success: false, message: json.message, errors: json.errors }
+    } catch {
+      return { success: false, message: avisoLocal('El pedido no se pudo enviar') }
+    }
+  },
+}

@@ -116,10 +116,17 @@ ningún admin que lo cree. Las tres vías terminan en la misma tabla `miembros` 
 pasan por funciones de la base que comprueban quién llama: no hay INSERT
 directo sobre `miembros` desde el cliente.
 
-## 8. Decisión pendiente: el rol `consulta`
+## 8. El rol `consulta`
 
-La base lo acepta desde la migración `006` y lo usan `/api/miembros` y las
-invitaciones, pero el módulo de administración sólo contempla `admin` y
-`empleado`, y su test lo afirma. Mientras no se unifique, un usuario de sólo
-lectura se asigna por invitación o por `PATCH /api/miembros/:id`, no por
-`POST /api/admin/usuarios/rol`.
+Quedó unificado: la base lo acepta desde la migración `006`, y ahora también
+`/api/miembros`, las invitaciones y el módulo de administración. Antes el panel
+no podía mostrarlo ni asignarlo, y la aplicación llegaba a borrarle la sesión
+al recargar.
+
+## 9. Comandas y mesas
+
+Cada mesa tiene a lo sumo **una comanda abierta** por organización, garantizado
+por un índice único parcial. El equipo entero la ve (incluido el rol de sólo
+lectura, que mira el mapa de mesas), pero tomar pedidos, cancelarlos y cobrar es
+de `admin` y `empleado`. Al cobrar, la comanda de esa mesa se marca `cobrada` y
+queda ligada a la venta.
