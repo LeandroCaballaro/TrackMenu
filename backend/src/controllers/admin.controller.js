@@ -337,9 +337,90 @@ export const getUsuarios = async (req, res, next) => {
 
     if (error && !isMissingTableError(error)) throw error;
 
+    let lista = (data || []).map((m) => ({
+      usuario_id: m.usuario_id,
+      rol: m.rol,
+      creado_en: m.creado_en,
+      nombre: '',
+      email: '',
+      telefono: '',
+      puesto: m.rol === 'admin' ? 'Administrador' : 'Personal',
+      estado: 'activo',
+      notas: '',
+    }));
+
+    // Asegurar que el usuario autenticado actual esté en la lista
+    if (!lista.some((m) => m.usuario_id === req.auth.usuarioId)) {
+      lista.unshift({
+        usuario_id: req.auth.usuarioId,
+        rol: req.auth.rol || 'admin',
+        creado_en: new Date().toISOString(),
+        nombre: req.auth.usuarioEmail ? req.auth.usuarioEmail.split('@')[0] : 'Administrador',
+        email: req.auth.usuarioEmail || '',
+        telefono: '',
+        puesto: 'Administrador General',
+        estado: 'activo',
+        notas: '',
+      });
+    }
+
+    // Si Supabase admin está configurado, enriquecer con los metadatos reales de auth.users
+    if (supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const { data: usersData } = await supabase.auth.admin.listUsers();
+        if (usersData?.users) {
+          const authMap = new Map(usersData.users.map((u) => [u.id, u]));
+          lista = lista.map((m) => {
+            const authUser = authMap.get(m.usuario_id);
+            if (!authUser) return m;
+            const meta = authUser.user_metadata || {};
+            return {
+              ...m,
+              email: authUser.email || m.email,
+              nombre: meta.name || meta.nombre || m.nombre || authUser.email?.split('@')[0] || 'Usuario del local',
+              telefono: meta.telefono || m.telefono,
+              puesto: meta.puesto || m.puesto,
+              estado: meta.estado || m.estado,
+              notas: meta.notas || m.notas,
+              creado_en: authUser.created_at || m.creado_en,
+            };
+          });
+        }
+      } catch (authErr) {
+        console.warn('No se pudo listar auth.users en getUsuarios:', authErr.message);
+      }
+    }
+
     res.json({
       success: true,
-      data: data || [],
+      data: lista,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getUsuario = async (req, res, next) => {
+  try {
+    const orgId = req.auth.organizacionId;
+    const db = req.auth.db;
+    const { id } = req.params;
+
+    const { data: miembro, error } = await db
+      .from('miembros')
+      .select('usuario_id, rol, creado_en')
+      .eq('usuario_id', id)
+      .eq('organizacion_id', orgId)
+      .maybeSingle();
+
+    if (error && !isMissingTableError(error)) throw error;
+    if (!miembro) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado en la organización.' });
+    }
+
+    res.json({
+      success: true,
+      data: miembro,
     });
   } catch (err) {
     next(err);
@@ -507,4 +588,158 @@ export const cambiarRolUsuario = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * Modificación integral de un usuario/miembro del local por parte del administrador.
+ * Permite actualizar nombre, email, rol, teléfono, puesto, estado y notas.
+ */
+export const actualizarUsuario = async (req, res, next) => {
+  try {
+    const orgId = req.auth.organizacionId;
+    const db = req.auth.db;
+    const { id } = req.params;
+    const { nombre, email, rol, telefono, puesto, estado, notas, password } = req.body;
+
+    if (rol && !ROLES_VALIDOS.includes(rol)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Rol inválido. Debe ser: admin o empleado.',
+      });
+    }
+
+    if (id === req.auth.usuarioId && rol && rol !== 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes revocar tu propio rol de administrador.',
+      });
+    }
+
+    // 1. Actualizar rol en la tabla miembros si fue enviado
+    if (rol) {
+      const { error: errRol } = await db
+        .from('miembros')
+        .update({ rol })
+        .eq('usuario_id', id)
+        .eq('organizacion_id', orgId);
+
+      if (errRol && !isMissingTableError(errRol)) throw errRol;
+    }
+
+    // 2. Si Supabase admin está disponible, actualizar metadatos y contraseña
+    if (supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const updateData = {
+        user_metadata: {
+          ...(nombre ? { name: String(nombre).trim() } : {}),
+          ...(telefono !== undefined ? { telefono: String(telefono).trim() } : {}),
+          ...(puesto !== undefined ? { puesto: String(puesto).trim() } : {}),
+          ...(estado !== undefined ? { estado } : {}),
+          ...(notas !== undefined ? { notas: String(notas).trim() } : {}),
+          ...(rol ? { rol } : {}),
+        },
+      };
+
+      if (email && EMAIL_REGEX.test(email.trim().toLowerCase())) {
+        updateData.email = email.trim().toLowerCase();
+      }
+
+      if (password && typeof password === 'string' && password.length >= 8) {
+        updateData.password = password;
+      }
+
+      await supabase.auth.admin.updateUserById(id, updateData).catch(() => {});
+    }
+
+    // 3. Log de auditoría
+    const { error: errAudit } = await db.from('auditoria_logs').insert([
+      {
+        organizacion_id: orgId,
+        usuario_id: req.auth.usuarioId,
+        accion: 'cambio_rol',
+        detalles: {
+          tipo_modificacion: 'perfil_usuario',
+          usuario_afectado: id,
+          nombre,
+          email,
+          rol,
+          puesto,
+          estado,
+          telefono,
+        },
+      },
+    ]);
+    if (errAudit && !isMissingTableError(errAudit)) {
+      console.warn('No se pudo registrar auditoría de modificacion_usuario:', errAudit.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Información del usuario actualizada correctamente.',
+      data: {
+        usuario_id: id,
+        nombre,
+        email,
+        rol,
+        telefono,
+        puesto,
+        estado,
+        notas,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Eliminación / baja de usuario del local.
+ */
+export const eliminarUsuario = async (req, res, next) => {
+  try {
+    const orgId = req.auth.organizacionId;
+    const db = req.auth.db;
+    const { id } = req.params;
+
+    if (id === req.auth.usuarioId) {
+      return res.status(400).json({
+        success: false,
+        message: 'No puedes eliminar tu propia cuenta de administrador.',
+      });
+    }
+
+    const { error: errDelete } = await db
+      .from('miembros')
+      .delete()
+      .eq('usuario_id', id)
+      .eq('organizacion_id', orgId);
+
+    if (errDelete && !isMissingTableError(errDelete)) throw errDelete;
+
+    if (supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      await supabase.auth.admin.deleteUser(id).catch(() => {});
+    }
+
+    const { error: errAudit } = await db.from('auditoria_logs').insert([
+      {
+        organizacion_id: orgId,
+        usuario_id: req.auth.usuarioId,
+        accion: 'baja_producto', // Acción registrada en auditoría
+        detalles: {
+          accion_real: 'baja_usuario',
+          usuario_eliminado: id,
+        },
+      },
+    ]);
+    if (errAudit && !isMissingTableError(errAudit)) {
+      console.warn('No se pudo registrar auditoría de baja_usuario:', errAudit.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Usuario eliminado del equipo correctamente.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

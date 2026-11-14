@@ -1,19 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 
-let localOrders = [
-  {
-    id: 104,
-    table_number: 4,
-    time: '20:14',
-    status: 'en_preparacion',
-    items: [
-      { id: 1, name: 'Burger clásica', price: 1890, quantity: 1 },
-      { id: 2, name: 'Papas a la piedra', price: 950, quantity: 1 },
-    ],
-    total: 2840,
-    created_at: new Date().toISOString(),
-  },
-];
+let localOrders = [];
 
 export const getOrders = async (req, res, next) => {
   try {
@@ -50,7 +37,19 @@ export const createOrder = async (req, res, next) => {
       });
     }
 
-    const total = items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+    const normalizedItems = items.map((item) => {
+      const price = Number(item.precio_unitario ?? item.price ?? 0);
+      const quantity = Math.max(1, Number(item.cantidad ?? item.quantity ?? 1));
+      return {
+        ...item,
+        name: item.nombre || item.name || 'Producto',
+        price,
+        quantity,
+        subtotal: price * quantity,
+      };
+    });
+
+    const total = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
     const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
     if (isSupabaseConfigured()) {
@@ -61,7 +60,7 @@ export const createOrder = async (req, res, next) => {
             table_number: Number(tableNumber),
             status: 'en_preparacion',
             time: timeStr,
-            items,
+            items: normalizedItems,
             total,
           },
         ])
@@ -81,7 +80,7 @@ export const createOrder = async (req, res, next) => {
       table_number: Number(tableNumber),
       status: 'en_preparacion',
       time: timeStr,
-      items,
+      items: normalizedItems,
       total,
       created_at: new Date().toISOString(),
     };

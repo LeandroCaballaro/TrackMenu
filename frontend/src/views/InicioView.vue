@@ -2,9 +2,11 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
-import { authState, productosService, ventasService, comandasService } from '@/services/api'
+import { authState, productosService, mesasService } from '@/services/api'
 import {
-  ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus, ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft,
+  ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus,
+  ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft, Search, Trash2,
+  RefreshCw, AlertCircle, UtensilsCrossed,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -15,91 +17,19 @@ const paymentOptions = [
   { value: 'Transferencia', label: 'Transferencia', icon: ArrowRightLeft },
 ]
 
-const burgerImage = 'https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-qw3nfbnetm1rXMnXgRGCZbDkTOypHG.png'
+const mesaOptions = Array.from({ length: 12 }, (_, idx) => ({
+  value: idx + 1,
+  label: `Mesa ${idx + 1}`,
+}))
 
-const productosDeEjemplo = [
-  {
-    id: 1,
-    name: 'Burger clásica',
-    description: 'Doble smash, cheddar, cebolla caramelizada y salsa de la casa.',
-    price: 1890,
-    category: 'Plato Principal',
-    image: burgerImage,
-  },
-  {
-    id: 2,
-    name: 'Papas a la piedra',
-    description: 'Crocantes por fuera, suaves por dentro, con romero y sal de escamas.',
-    price: 950,
-    category: 'Plato Principal',
-    image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=500&q=80',
-  },
-  {
-    id: 3,
-    name: 'Milanesa de pollo',
-    description: 'Rebozada crocante con limón y ensalada fresca.',
-    price: 1050,
-    category: 'Plato Principal',
-    image: burgerImage,
-  },
-  {
-    id: 4,
-    name: 'Limonada casera',
-    description: 'Limón natural, menta y un toque de jengibre.',
-    price: 780,
-    category: 'Bebidas',
-    image: 'https://images.unsplash.com/photo-1621263764928-df1444c5e859?auto=format&fit=crop&w=500&q=80',
-  },
-  {
-    id: 5,
-    name: 'Cheesecake de frutos rojos',
-    description: 'Cremoso, suave y con salsa de frutos rojos.',
-    price: 1200,
-    category: 'Postres',
-    image: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=500&q=80',
-  },
-]
-// La carta sale de la base: estos productos de ejemplo quedan sólo para la
-// portada, cuando todavía no hay sesión con la que leer el menú real.
-const products = ref(productosDeEjemplo)
-const cargandoCarta = ref(false)
-const errorCarta = ref("")
+const opcionesPersonalizacion = ['Sin cebolla', 'Sin sal', 'Papas grandes', 'Salsa aparte']
 
-const cargarCarta = async () => {
-  if (!authState.token) return
-  cargandoCarta.value = true
-  errorCarta.value = ""
-
-  const res = await productosService.listar({ activo: true, orden: "nombre", dir: "asc", limite: 100 })
-
-  if (!res.success) {
-    errorCarta.value = res.message || "No se pudo cargar la carta."
-  } else {
-    products.value = res.data.map((p) => ({
-      id: p.id,
-      name: p.nombre,
-      description: p.descripcion || "",
-      price: Number(p.precio),
-      category: "Carta",
-      image: p.imagen_url || burgerImage,
-    }))
-    cart.value = []
-    // sin productos activos la carta queda vacía, pero la pantalla no se rompe
-    category.value = categorias.value[0] ?? ""
-  }
-
-  cargandoCarta.value = false
+const parseMesaQuery = (raw) => {
+  const n = Number(raw)
+  return Number.isInteger(n) && n >= 1 && n <= 12 ? n : 1
 }
 
-onMounted(async () => {
-  await Promise.all([cargarCarta(), cargarComandas()])
-})
-watch(() => authState.token, async () => {
-  await Promise.all([cargarCarta(), cargarComandas()])
-})
-
-
-const formatPrice = (price) => `$ ${price.toLocaleString('es-AR')}`
+const formatPrice = (price) => `$ ${Number(price || 0).toLocaleString('es-AR')}`
 
 // Sincronización de vista según rol y query de la URL (?vista=mesas | ?vista=carta)
 const permisoMesas = computed(() => authState.rol === 'admin' || authState.rol === 'empleado')
@@ -113,65 +43,200 @@ watch(() => route.query.vista, (nuevaVista) => {
     view.value = 'cliente'
   }
 })
-const category = ref('Plato Principal')
-const cart = ref([])
-const selected = ref(null)
-const orderSent = ref(false)
-const mobileCartOpen = ref(false)
-const occupied = computed(() => comandas.value.map((c) => c.mesa_numero))
-const selectedTable = ref(4)
-const payment = ref('Efectivo')
-
-// Sin conexión con el backend la carta no sale de la base: avisarlo.
-const modoLocal = computed(() => Boolean(authState.user) && !authState.backendConnected)
-
-// El router manda acá con ?denegado=true cuando el rol no alcanza; sin esto
-// el usuario aparecía en otra pantalla sin ninguna explicación.
+// El router manda acá con ?denegado=true cuando el rol no alcanza.
 const accesoDenegado = computed(() => route.query.denegado === 'true')
 
-const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
-
-const visibleProducts = computed(() => {
-  return products.value.filter((product) => product.category === category.value)
-})
-
-const cartProducts = computed(() => {
-  return cart.value.map((id) => products.value.find((product) => product.id === id)).filter(Boolean)
-})
-
-const cartItems = computed(() => {
-  const grouped = new Map()
-  for (const id of cart.value) {
-    const product = products.value.find((p) => p.id === id)
-    if (!product) continue
-    if (!grouped.has(id)) {
-      grouped.set(id, { product, qty: 0, subtotal: 0 })
-    }
-    const entry = grouped.get(id)
-    entry.qty += 1
-    entry.subtotal = entry.qty * product.price
+watch(() => route.query.mesa, (nuevaMesa) => {
+  if (nuevaMesa !== undefined) {
+    mesaCliente.value = parseMesaQuery(nuevaMesa)
   }
-  return Array.from(grouped.values())
 })
 
-const getProductQty = (id) => cart.value.filter((item) => item === id).length
+// Catálogo real y estado real de las 12 mesas
+const productosCatalogo = ref([])
+const cargandoCatalogo = ref(true)
+const mesas = ref(
+  Array.from({ length: 12 }, (_, idx) => ({ numero: idx + 1, ocupada: false, comanda: null })),
+)
+const cargandoMesas = ref(false)
 
-const total = computed(() => {
-  return cartProducts.value.reduce((sum, product) => sum + product.price, 0)
-})
+// Estado vista Cliente (Carta Digital)
+const mesaCliente = ref(parseMesaQuery(route.query.mesa))
+const busquedaCatalogo = ref('')
+const soloDisponibles = ref(false)
+const cart = ref([]) // [{ key, producto_id, nombre, precio_unitario, cantidad, opciones, stock_disponible }]
+const selected = ref(null)
+const opcionesSeleccionadas = ref([])
+const notaProducto = ref('')
+const orderSent = ref(false)
+const ultimoPedidoEnviado = ref(null)
+const enviandoPedido = ref(false)
+const mobileCartOpen = ref(false)
 
-const tableOccupied = computed(() => {
-  return occupied.value.includes(selectedTable.value)
-})
+// Estado vista Cajero (Control de Mesas)
+const selectedTable = ref(parseMesaQuery(route.query.mesa))
+const panelComandaRef = ref(null)
+const payment = ref('Efectivo')
+const productoRapidoId = ref('')
+const cantidadRapida = ref(1)
+const procesandoMesa = ref(false)
 
-const addToCart = (id) => {
-  orderSent.value = false
-  cart.value.push(id)
+const seleccionarMesa = (numero) => {
+  selectedTable.value = numero
+  if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    panelComandaRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 }
 
-const removeFromCart = (id) => {
-  const index = cart.value.lastIndexOf(id)
-  if (index >= 0) {
+// Feedback inline / Toast
+const feedback = ref({ visible: false, tipo: 'exito', mensaje: '' })
+let feedbackTimer = null
+const mostrarFeedback = (mensaje, tipo = 'exito') => {
+  if (feedbackTimer) clearTimeout(feedbackTimer)
+  feedback.value = { visible: true, tipo, mensaje }
+  feedbackTimer = setTimeout(() => {
+    feedback.value.visible = false
+  }, 4000)
+}
+
+const fallbackImagen = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80'
+
+async function cargarCatalogo() {
+  cargandoCatalogo.value = true
+  const res = await productosService.listar({ activo: true, orden: 'nombre', dir: 'asc', limite: 100 })
+  cargandoCatalogo.value = false
+  if (res.success && Array.isArray(res.data)) {
+    productosCatalogo.value = res.data.filter((p) => p.activo !== false)
+  }
+}
+
+async function cargarMesas() {
+  cargandoMesas.value = true
+  const res = await mesasService.listarMesas()
+  cargandoMesas.value = false
+  if (res.success && Array.isArray(res.data)) {
+    mesas.value = res.data
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([cargarCatalogo(), cargarMesas()])
+})
+
+watch(() => authState.organizacion?.id, async () => {
+  cart.value = []
+  orderSent.value = false
+  ultimoPedidoEnviado.value = null
+  await Promise.all([cargarCatalogo(), cargarMesas()])
+})
+
+const visibleProducts = computed(() => {
+  const term = busquedaCatalogo.value.trim().toLowerCase()
+  return productosCatalogo.value.filter((p) => {
+    if (soloDisponibles.value && Number(p.stock || 0) <= 0) return false
+    if (!term) return true
+    return (
+      String(p.nombre || '').toLowerCase().includes(term) ||
+      String(p.descripcion || '').toLowerCase().includes(term)
+    )
+  })
+})
+
+const totalUnidadesCarrito = computed(() =>
+  cart.value.reduce((sum, item) => sum + Number(item.cantidad || 0), 0),
+)
+
+const total = computed(() =>
+  cart.value.reduce((sum, item) => sum + Number(item.precio_unitario || 0) * Number(item.cantidad || 0), 0),
+)
+
+const mesaClienteActual = computed(() =>
+  mesas.value.find((m) => m.numero === mesaCliente.value) || { numero: mesaCliente.value, ocupada: false, comanda: null },
+)
+
+const getProductQtyInCart = (productoId) =>
+  cart.value
+    .filter((item) => String(item.producto_id) === String(productoId))
+    .reduce((sum, item) => sum + Number(item.cantidad || 0), 0)
+
+const stockRestanteParaProducto = (product) => {
+  const stockReal = Number(product.stock ?? 0)
+  const enComandaMesa = (mesaClienteActual.value?.comanda?.items || [])
+    .filter((it) => String(it.producto_id) === String(product.id))
+    .reduce((sum, it) => sum + Number(it.cantidad || 0), 0)
+  return Math.max(0, stockReal - enComandaMesa - getProductQtyInCart(product.id))
+}
+
+const buildItemKey = (productoId, opciones = []) => {
+  const cleanOps = [...opciones].map((o) => String(o).trim()).filter(Boolean).sort()
+  return `${productoId}::${JSON.stringify(cleanOps)}`
+}
+
+const abrirModalPersonalizar = (product) => {
+  if (Number(product.stock ?? 0) <= 0) {
+    mostrarFeedback(`"${product.nombre}" se encuentra sin stock en este momento.`, 'error')
+    return
+  }
+  selected.value = product
+  opcionesSeleccionadas.value = []
+  notaProducto.value = ''
+}
+
+const addToCart = (product, opciones = []) => {
+  if (!product) return
+  if (stockRestanteParaProducto(product) <= 0) {
+    mostrarFeedback(`No queda más stock disponible de "${product.nombre}".`, 'error')
+    return
+  }
+
+  orderSent.value = false
+  ultimoPedidoEnviado.value = null
+  const cleanOpciones = opciones.map((o) => String(o).trim()).filter(Boolean)
+  const key = buildItemKey(product.id, cleanOpciones)
+  const existing = cart.value.find((item) => item.key === key)
+
+  if (existing) {
+    existing.cantidad += 1
+  } else {
+    cart.value.push({
+      key,
+      producto_id: product.id,
+      nombre: product.nombre,
+      precio_unitario: Number(product.precio || 0),
+      cantidad: 1,
+      opciones: cleanOpciones,
+      stock_disponible: Number(product.stock ?? 0),
+    })
+  }
+}
+
+const agregarDesdeModal = () => {
+  if (!selected.value) return
+  const opciones = [...opcionesSeleccionadas.value]
+  if (notaProducto.value.trim()) {
+    opciones.push(`Nota: ${notaProducto.value.trim()}`)
+  }
+  addToCart(selected.value, opciones)
+  selected.value = null
+}
+
+const incrementCartItem = (key) => {
+  const item = cart.value.find((i) => i.key === key)
+  if (!item) return
+  const prod = productosCatalogo.value.find((p) => String(p.id) === String(item.producto_id))
+  if (prod && stockRestanteParaProducto(prod) <= 0) {
+    mostrarFeedback(`Alcanzaste el límite de stock de "${item.nombre}".`, 'error')
+    return
+  }
+  item.cantidad += 1
+}
+
+const decrementCartItem = (key) => {
+  const index = cart.value.findIndex((i) => i.key === key)
+  if (index === -1) return
+  if (cart.value[index].cantidad > 1) {
+    cart.value[index].cantidad -= 1
+  } else {
     cart.value.splice(index, 1)
   }
   if (cart.value.length === 0) {
@@ -179,173 +244,312 @@ const removeFromCart = (id) => {
   }
 }
 
-const removeAllFromCart = (id) => {
-  cart.value = cart.value.filter((item) => item !== id)
+const removeCartItem = (key) => {
+  cart.value = cart.value.filter((i) => i.key !== key)
   if (cart.value.length === 0) {
     mobileCartOpen.value = false
   }
 }
 
-// La comanda que ve el cajero salía escrita a mano en la plantilla (siempre
-// "1x Burger clásica + 1x Papas, $2.840"), así que no tenía relación con lo que
-// el cliente había pedido ni con lo que después se cobraba.
-// Las comandas viven en la base: antes estaban en memoria, había una sola
-// mesa y se perdían al recargar.
-const comandas = ref([])
-const mesaDelPedido = ref(1)
-const enviando = ref(false)
-const avisoPedido = ref("")
-
-const cargarComandas = async () => {
-  if (!authState.token) return
-  const res = await comandasService.listar()
-  if (res.success) comandas.value = res.data
-}
-
 const sendOrder = async () => {
-  if (enviando.value || cartItems.value.length === 0) return
-  avisoPedido.value = ""
-  enviando.value = true
-
-  const res = await comandasService.enviarPedido({
-    mesa_numero: mesaDelPedido.value,
-    items: cartItems.value.map((item) => ({ producto_id: item.product.id, cantidad: item.qty })),
+  if (!cart.value.length || enviandoPedido.value) return
+  enviandoPedido.value = true
+  const res = await mesasService.enviarPedido({
+    mesaNumero: mesaCliente.value,
+    items: cart.value,
   })
-  enviando.value = false
+  enviandoPedido.value = false
 
-  if (!res.success) {
-    avisoPedido.value = res.message || "No se pudo enviar el pedido."
-    return
+  if (res.success && res.data) {
+    ultimoPedidoEnviado.value = {
+      numero_pedido: res.data.numero_pedido,
+      mesa_numero: res.data.mesa_numero,
+      total: res.data.total,
+    }
+    orderSent.value = true
+    cart.value = []
+    await cargarMesas()
+    mostrarFeedback(res.message, 'exito')
+  } else {
+    mostrarFeedback(res.message || 'No se pudo enviar el pedido.', 'error')
   }
-
-  avisoPedido.value = res.message
-  orderSent.value = true
-  cart.value = []
-  await cargarComandas()
 }
 
-const comandaDeLaMesa = computed(() => comandas.value.find((c) => c.mesa_numero === selectedTable.value) || null)
-const comandaActiva = computed(() => comandaDeLaMesa.value?.items || [])
-const totalComanda = computed(() => comandaDeLaMesa.value?.total || 0)
-
-const selectCategory = (item) => {
-  category.value = item
-}
-
-const cobrando = ref(false)
-const avisoCobro = ref('')
-
-// Esto escribía la venta en el localStorage del navegador, con un total fijo de
-// $2840 y dos productos inventados: el panel de ventas y los KPIs nunca veían
-// nada y no había ningún ticket que anular.
-const freeTable = async () => {
-  if (cobrando.value) return
-  avisoCobro.value = ''
-
-  const items = comandaActiva.value.map((linea) => ({ producto_id: linea.producto_id, cantidad: linea.cantidad }))
-  if (items.length === 0) {
-    avisoCobro.value = 'No hay nada para cobrar en esta mesa.'
-    return
-  }
-
-  cobrando.value = true
-  const res = await ventasService.cobrarMesa({
-    mesa_numero: selectedTable.value,
-    metodo_pago: payment.value,
-    items,
-  })
-  cobrando.value = false
-
-  if (!res.success) {
-    avisoCobro.value = res.message || 'No se pudo registrar la venta.'
-    return
-  }
-
-  avisoCobro.value = `Cobrado $${Number(res.data.total).toLocaleString('es-AR')} en la mesa ${selectedTable.value}.`
-  cart.value = []
+const iniciarNuevoPedido = () => {
   orderSent.value = false
-  await Promise.all([cargarCarta(), cargarComandas()])
+  ultimoPedidoEnviado.value = null
+}
+
+// Lógica de Control de Mesas (Cajero / Mozo)
+const mesaActual = computed(() =>
+  mesas.value.find((m) => m.numero === selectedTable.value) || {
+    numero: selectedTable.value,
+    ocupada: false,
+    comanda: null,
+  },
+)
+
+const comandaActual = computed(() => mesaActual.value?.comanda || null)
+const tableOccupied = computed(() => Boolean(mesaActual.value?.ocupada && comandaActual.value))
+
+const opcionesProductoRapido = computed(() =>
+  productosCatalogo.value
+    .filter((p) => Number(p.stock || 0) > 0)
+    .map((p) => ({
+      value: p.id,
+      label: `${p.nombre} · ${formatPrice(p.precio)} (${p.stock} disp.)`,
+    })),
+)
+
+const agregarPlatoAMesa = async () => {
+  if (!productoRapidoId.value || procesandoMesa.value) return
+  const prod = productosCatalogo.value.find((p) => String(p.id) === String(productoRapidoId.value))
+  if (!prod) {
+    mostrarFeedback('Seleccioná un producto válido del catálogo.', 'error')
+    return
+  }
+  const cant = Math.max(1, Number(cantidadRapida.value || 1))
+  procesandoMesa.value = true
+  const res = await mesasService.enviarPedido({
+    mesaNumero: selectedTable.value,
+    items: [
+      {
+        producto_id: prod.id,
+        nombre: prod.nombre,
+        precio_unitario: Number(prod.precio || 0),
+        cantidad: cant,
+        stock_disponible: Number(prod.stock ?? 0),
+      },
+    ],
+  })
+  procesandoMesa.value = false
+
+  if (res.success) {
+    productoRapidoId.value = ''
+    cantidadRapida.value = 1
+    await cargarMesas()
+    mostrarFeedback(res.message, 'exito')
+  } else {
+    mostrarFeedback(res.message || 'No se pudo agregar el producto a la mesa.', 'error')
+  }
+}
+
+const quitarItemComanda = async (index) => {
+  if (procesandoMesa.value) return
+  procesandoMesa.value = true
+  const res = await mesasService.quitarItemMesa({
+    mesaNumero: selectedTable.value,
+    index,
+  })
+  procesandoMesa.value = false
+
+  if (res.success) {
+    await cargarMesas()
+    mostrarFeedback(res.message, 'exito')
+  } else {
+    mostrarFeedback(res.message || 'No se pudo quitar el ítem.', 'error')
+  }
+}
+
+const cancelarComanda = async () => {
+  if (procesandoMesa.value || !tableOccupied.value) return
+  procesandoMesa.value = true
+  const res = await mesasService.cancelarComandaMesa({
+    mesaNumero: selectedTable.value,
+  })
+  procesandoMesa.value = false
+
+  if (res.success) {
+    await cargarMesas()
+    mostrarFeedback(res.message, 'exito')
+  } else {
+    mostrarFeedback(res.message || 'No se pudo cancelar la comanda.', 'error')
+  }
+}
+
+const freeTable = async () => {
+  if (procesandoMesa.value || !tableOccupied.value) return
+  procesandoMesa.value = true
+  const res = await mesasService.cobrarYLiberarMesa({
+    mesaNumero: selectedTable.value,
+    metodoPago: payment.value,
+  })
+  procesandoMesa.value = false
+
+  if (res.success) {
+    await Promise.all([cargarMesas(), cargarCatalogo()])
+    mostrarFeedback(res.message, 'exito')
+  } else {
+    mostrarFeedback(res.message || 'No se pudo cobrar y liberar la mesa.', 'error')
+  }
 }
 </script>
 
 <template>
-  <main class="relative z-0 min-h-dvh overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+  <main class="relative z-0 min-h-dvh overflow-x-clip bg-[#0c0a09] text-[#f5f2eb]">
     <p v-if="accesoDenegado" role="alert"
       class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
       No tenés permiso para entrar a esa pantalla con tu rol ({{ route.query.rol || authState.rol }}).
     </p>
-    <p v-if="modoLocal" role="status"
-      class="relative z-20 w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
-      Sin conexión con el servidor: la carta no se está leyendo de la base de datos.
-    </p>
-    <p v-else-if="errorCarta" role="alert"
-      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
-      {{ errorCarta }}
-    </p>
+
+    <!-- Notificación Flotante -->
+    <transition
+      enter-active-class="transform transition ease-out duration-200"
+      enter-from-class="translate-y-2 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition ease-in duration-150"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div
+        v-if="feedback.visible"
+        class="fixed bottom-20 right-5 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3 text-xs font-semibold shadow-2xl backdrop-blur-md lg:bottom-5"
+        :class="feedback.tipo === 'error'
+          ? 'border-rose-900/60 bg-[#2b1111] text-rose-200'
+          : 'border-[#204933] bg-[#163223] text-[#4ade80]'">
+        <AlertCircle v-if="feedback.tipo === 'error'" :size="15" />
+        <Check v-else :size="15" />
+        <span>{{ feedback.mensaje }}</span>
+        <button type="button" @click="feedback.visible = false" class="ml-1 text-stone-400 hover:text-white">
+          <X :size="13" />
+        </button>
+      </div>
+    </transition>
     <!-- Ambient glow background decoration -->
     <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-40">
       <div class="absolute -top-[20%] left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/15 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
     </div>
 
-    <!-- CLIENTE VIEW -->
-    <section v-if="view === 'cliente'"
+    <!-- CLIENTE VIEW (CARTA DIGITAL REAL) -->
+    <section
+      v-if="view === 'cliente'"
       class="relative mx-auto grid w-full min-w-0 max-w-[1400px] gap-6 px-4 pt-4 pb-6 sm:gap-8 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_380px] md:px-8">
       <div class="mx-auto w-full min-w-0 max-w-[760px] lg:mx-0">
-        <!-- Title & Table tag -->
-        <div class="mb-4 flex items-end justify-between gap-3 sm:mb-6">
+        <!-- Title & Table selector -->
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
           <div class="min-w-0">
             <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e] sm:text-xs">Escanea y elegí</p>
-            <h1 class="mt-0.5 font-serif text-2xl font-bold tracking-tight text-white sm:mt-1 sm:text-4xl">Trackea tu Menú</h1>
+            <h1 class="mt-0.5 font-serif text-2xl font-bold tracking-tight text-white sm:mt-1 sm:text-4xl">
+              Trackea tu Menú
+            </h1>
           </div>
-          <label class="shrink-0 rounded-full bg-[#e58a4e] px-3 py-1.5 text-xs font-bold text-[#190d05]">
-            <span class="sr-only">Mesa del pedido</span>
-            Mesa
-            <select v-model.number="mesaDelPedido"
-              class="ml-1 rounded bg-transparent font-bold text-[#190d05] outline-none">
-              <option v-for="n in 12" :key="n" :value="n">{{ n }}</option>
-            </select>
-          </label>
+
+          <div class="w-36 shrink-0">
+            <Combobox
+              v-model="mesaCliente"
+              :options="mesaOptions"
+              size="sm"
+              placeholder="Mesa"
+            />
+          </div>
         </div>
 
-        <!-- Categories -->
-        <div class="no-scrollbar mb-5 flex items-center gap-2 overflow-x-auto touch-pan-x sm:mb-6 sm:gap-2.5" role="tablist">
-          <button v-for="item in categorias" :key="item" type="button"
-            @click="selectCategory(item)"
-            class="min-h-[40px] whitespace-nowrap rounded-full px-4 sm:px-5 py-2 text-xs font-bold transition duration-150 active:scale-[0.97]"
-            :class="category === item ? 'bg-[#e58a4e] text-[#190d05]' : 'bg-[#17120f] border border-white/5 text-stone-400 hover:text-stone-200 hover:bg-[#221a15]'">
-            {{ item }}
-          </button>
+        <!-- Buscador y filtro de disponibilidad -->
+        <div class="mb-5 flex flex-col gap-2.5 sm:mb-6 sm:flex-row sm:items-center">
+          <div class="relative flex-1">
+            <Search :size="15" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500" />
+            <input
+              v-model="busquedaCatalogo"
+              type="text"
+              placeholder="Buscar platos o bebidas del menú..."
+              class="w-full rounded-full border border-white/10 bg-[#17120f] py-2.5 pl-10 pr-9 text-xs text-white placeholder:text-stone-500 outline-none focus:border-[#e58a4e] transition"
+            />
+            <button
+              v-if="busquedaCatalogo"
+              type="button"
+              @click="busquedaCatalogo = ''"
+              aria-label="Limpiar búsqueda"
+              class="btn-inline-clear absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-white">
+              <X :size="14" />
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              @click="soloDisponibles = false"
+              class="btn-filter min-h-[38px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition"
+              :class="!soloDisponibles ? 'bg-[#e58a4e] text-[#190d05]' : 'bg-[#17120f] border border-white/5 text-stone-400 hover:text-stone-200'">
+              Todos ({{ productosCatalogo.length }})
+            </button>
+            <button
+              type="button"
+              @click="soloDisponibles = true"
+              class="btn-filter min-h-[38px] whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold transition"
+              :class="soloDisponibles ? 'bg-[#e58a4e] text-[#190d05]' : 'bg-[#17120f] border border-white/5 text-stone-400 hover:text-stone-200'">
+              Con stock
+            </button>
+          </div>
         </div>
 
-        <!-- Product Cards -->
-        <div class="w-full min-w-0 space-y-3 sm:space-y-3.5">
-          <article v-for="product in visibleProducts" :key="product.id"
-            @click="selected = product"
-            class="box-border flex w-full min-w-0 max-w-full cursor-pointer gap-3.5 overflow-hidden rounded-2xl border border-white/5 bg-[#17120f] p-3.5 transition duration-150 hover:border-white/10 active:scale-[0.99] sm:gap-4 sm:p-4">
-            <img :src="product.image" :alt="product.name"
-              class="h-24 w-24 shrink-0 rounded-xl object-cover bg-stone-900 sm:h-28 sm:w-28" />
+        <!-- Estado de carga o catálogo vacío -->
+        <div v-if="cargandoCatalogo" class="rounded-2xl border border-white/5 bg-[#17120f] p-8 text-center text-xs text-stone-400">
+          Cargando carta actualizada...
+        </div>
+
+        <div
+          v-else-if="!visibleProducts.length"
+          class="rounded-2xl border border-dashed border-stone-800 bg-[#17120f]/60 p-8 text-center">
+          <UtensilsCrossed :size="24" class="mx-auto text-stone-600" />
+          <p class="mt-3 text-sm font-semibold text-stone-300">No encontramos platos disponibles</p>
+          <p class="mt-1 text-xs text-stone-500">
+            {{ busquedaCatalogo ? 'Probá con otro término de búsqueda.' : 'El local todavía no publicó platos activos.' }}
+          </p>
+        </div>
+
+        <!-- Product Cards reales del catálogo -->
+        <div v-else class="w-full min-w-0 space-y-3 sm:space-y-3.5">
+          <article
+            v-for="product in visibleProducts"
+            :key="product.id"
+            @click="abrirModalPersonalizar(product)"
+            class="box-border flex w-full min-w-0 max-w-full cursor-pointer gap-3.5 overflow-hidden rounded-2xl border border-white/5 bg-[#17120f] p-3.5 transition duration-150 hover:border-white/15 sm:gap-4 sm:p-4"
+            :class="Number(product.stock ?? 0) <= 0 ? 'opacity-65' : ''">
+            <img
+              :src="product.imagen_url || fallbackImagen"
+              :alt="product.nombre"
+              class="h-20 w-20 shrink-0 rounded-xl object-cover bg-stone-900 sm:h-28 sm:w-28"
+            />
             <div class="flex min-w-0 flex-1 flex-col justify-between overflow-hidden">
               <div class="min-w-0">
                 <div class="flex min-w-0 items-start justify-between gap-2">
-                  <h2 class="min-w-0 text-[15px] font-bold leading-snug text-white sm:text-lg">{{ product.name }}</h2>
+                  <h2 class="min-w-0 text-[15px] font-bold leading-snug text-white sm:text-lg">
+                    {{ product.nombre }}
+                  </h2>
                   <span class="shrink-0 tabular-nums text-sm font-bold text-[#e58a4e] sm:text-base">
-                    {{ formatPrice(product.price) }}
+                    {{ formatPrice(product.precio) }}
                   </span>
                 </div>
                 <p class="mt-1 line-clamp-2 max-w-[430px] break-words text-xs leading-relaxed text-stone-400 sm:line-clamp-none">
-                  {{ product.description }}
+                  {{ product.descripcion || 'Preparado en el momento.' }}
                 </p>
               </div>
-              <div class="mt-3 flex items-center justify-between gap-2">
-                <button type="button" @click.stop="selected = product"
-                  class="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-white/10 bg-[#221a15] px-4 py-1.5 text-xs font-bold text-stone-200 transition hover:border-white/20 hover:bg-[#2e231d] hover:text-white active:scale-[0.96]">
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  :disabled="stockRestanteParaProducto(product) <= 0"
+                  @click.stop="abrirModalPersonalizar(product)"
+                  class="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-white/10 bg-[#221a15] px-4 py-1.5 text-xs font-bold text-stone-200 transition hover:border-white/20 hover:bg-[#2e231d] hover:text-white disabled:cursor-not-allowed disabled:opacity-45">
                   <Plus :size="14" class="text-[#e58a4e]" />
-                  <span>Agregar</span>
+                  <span>{{ Number(product.stock ?? 0) <= 0 ? 'Sin stock' : 'Agregar' }}</span>
                 </button>
-                <span v-if="getProductQty(product.id) > 0"
-                  class="rounded-full border border-[#e58a4e]/35 bg-[#e58a4e]/10 px-2.5 py-1 text-[11px] font-bold text-[#e58a4e]">
-                  {{ getProductQty(product.id) }} en pedido
-                </span>
+
+                <div class="flex items-center gap-2">
+                  <span
+                    v-if="getProductQtyInCart(product.id) > 0"
+                    class="rounded-full border border-[#e58a4e]/35 bg-[#e58a4e]/10 px-2.5 py-1 text-[11px] font-bold text-[#e58a4e]">
+                    {{ getProductQtyInCart(product.id) }} en pedido
+                  </span>
+                  <span
+                    class="rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                    :class="Number(product.stock ?? 0) <= 0
+                      ? 'border border-rose-900/60 bg-rose-950/30 text-rose-300'
+                      : Number(product.stock ?? 0) <= 5
+                        ? 'border border-amber-800/50 bg-amber-950/25 text-amber-300'
+                        : 'text-stone-500'">
+                    {{ Number(product.stock ?? 0) <= 0 ? 'Agotado' : `${product.stock} disp.` }}
+                  </span>
+                </div>
               </div>
             </div>
           </article>
@@ -369,104 +573,156 @@ const freeTable = async () => {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Tu pedido</p>
-            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa {{ mesaDelPedido }}</h2>
+            <h2 class="mt-0.5 font-serif text-2xl font-bold text-white">Mesa {{ mesaCliente }}</h2>
           </div>
           <div class="flex items-center gap-2">
             <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/5 bg-[#221a15] text-[#e58a4e]">
               <ShoppingBag :size="18" />
             </div>
-            <button v-if="mobileCartOpen" type="button" @click="mobileCartOpen = false" aria-label="Cerrar pedido"
-              class="flex h-10 w-10 items-center justify-center rounded-full border border-stone-800 bg-[#110d0b] text-stone-300 transition active:scale-95 lg:hidden">
+            <button
+              v-if="mobileCartOpen"
+              type="button"
+              @click="mobileCartOpen = false"
+              aria-label="Cerrar pedido"
+              class="flex h-10 w-10 items-center justify-center rounded-full border border-stone-800 bg-[#110d0b] text-stone-300 transition lg:hidden">
               <X :size="18" />
             </button>
           </div>
         </div>
 
-        <div v-if="orderSent" class="mt-6 rounded-2xl border border-[#204933] bg-[#163223] p-5 text-center sm:mt-8">
+        <!-- Resumen de comanda ya enviada en esta mesa -->
+        <div
+          v-if="mesaClienteActual.ocupada && mesaClienteActual.comanda"
+          class="mt-4 rounded-2xl border border-[#e58a4e]/30 bg-[#221a15]/70 px-3.5 py-2.5 text-xs">
+          <div class="flex items-center justify-between text-[#e58a4e] font-semibold">
+            <span>Comanda abierta · Pedido #{{ mesaClienteActual.comanda.numero_pedido }}</span>
+            <span>{{ formatPrice(mesaClienteActual.comanda.total) }}</span>
+          </div>
+          <p class="mt-0.5 text-[11px] text-stone-400">
+            Si enviás más platos se sumarán automáticamente a tu mesa.
+          </p>
+        </div>
+
+        <div v-if="orderSent && ultimoPedidoEnviado" class="mt-6 rounded-2xl border border-[#204933] bg-[#163223] p-5 text-center sm:mt-8">
           <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#4ade80] text-[#120a05]">
             <Check :size="21" class="stroke-[3]" />
           </div>
-          <h3 class="mt-3 font-serif text-xl font-bold text-white">Pedido recibido</h3>
-          <p class="mt-1 text-sm text-[#82e1a3]">Tu comida está en preparación.</p>
-          <p class="mt-5 flex items-center justify-center gap-2 text-xs font-bold text-stone-400">
-            <Clock3 :size="14" /> Tiempo estimado: 20–30 min
+          <h3 class="mt-3 font-serif text-xl font-bold text-white">
+            Pedido #{{ ultimoPedidoEnviado.numero_pedido }} recibido
+          </h3>
+          <p class="mt-1 text-sm text-[#82e1a3]">
+            Mesa {{ ultimoPedidoEnviado.mesa_numero }} · Tu comida está en preparación.
           </p>
+          <p class="mt-3 text-xs font-semibold text-stone-300">
+            Total acumulado en mesa: {{ formatPrice(ultimoPedidoEnviado.total) }}
+          </p>
+          <button
+            type="button"
+            @click="iniciarNuevoPedido"
+            class="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-[#204933] bg-[#0d2217] px-3.5 py-2 text-xs font-bold text-[#82e1a3] transition hover:text-white">
+            <Plus :size="14" /> Seguir pidiendo
+          </button>
         </div>
 
         <template v-else>
           <div class="mt-5 space-y-3 sm:mt-6">
-            <div v-for="item in cartItems" :key="item.product.id"
+            <div
+              v-for="item in cart"
+              :key="item.key"
               class="flex items-center justify-between gap-3 rounded-2xl border border-stone-800/60 bg-[#110d0b]/70 p-3 text-sm">
               <div class="min-w-0 flex-1">
-                <p class="truncate font-bold text-white">{{ item.product.name }}</p>
+                <p class="truncate font-bold text-white">{{ item.nombre }}</p>
+                <p v-if="item.opciones?.length" class="mt-0.5 truncate text-[11px] text-stone-400">
+                  {{ item.opciones.join(' · ') }}
+                </p>
                 <div class="mt-1.5 flex items-center gap-2">
-                  <button type="button" @click="removeFromCart(item.product.id)" aria-label="Restar unidad"
-                    class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#17120f] text-stone-300 transition hover:border-stone-700 active:scale-95">
+                  <button
+                    type="button"
+                    @click="decrementCartItem(item.key)"
+                    aria-label="Restar unidad"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#17120f] text-stone-300 transition hover:border-stone-700">
                     <Minus :size="14" />
                   </button>
-                  <span class="min-w-[20px] text-center text-xs font-bold tabular-nums text-white">{{ item.qty }}</span>
-                  <button type="button" @click="addToCart(item.product.id)" aria-label="Sumar unidad"
-                    class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#17120f] text-[#e58a4e] transition hover:border-stone-700 active:scale-95">
+                  <span class="min-w-[20px] text-center text-xs font-bold tabular-nums text-white">{{ item.cantidad }}</span>
+                  <button
+                    type="button"
+                    @click="incrementCartItem(item.key)"
+                    aria-label="Sumar unidad"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#17120f] text-[#e58a4e] transition hover:border-stone-700">
                     <Plus :size="14" />
                   </button>
                 </div>
               </div>
               <div class="shrink-0 text-right">
-                <p class="font-bold tabular-nums text-white">{{ formatPrice(item.subtotal) }}</p>
-                <button type="button" @click="removeAllFromCart(item.product.id)"
+                <p class="font-bold tabular-nums text-white">{{ formatPrice(item.precio_unitario * item.cantidad) }}</p>
+                <button
+                  type="button"
+                  @click="removeCartItem(item.key)"
                   class="mt-1 py-1 text-[11px] font-bold text-[#e58a4e] transition hover:text-[#f09559] hover:underline">
                   Quitar
                 </button>
               </div>
             </div>
-            <div v-if="!cartItems.length" class="py-6 text-center text-xs text-stone-500">
-              El carrito está vacío
+            <div v-if="!cart.length" class="py-6 text-center text-xs text-stone-500">
+              Tu pedido está vacío. Elegí platos de la carta.
             </div>
           </div>
 
           <div class="my-5 border-t border-dashed border-stone-800" />
 
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-stone-400">Subtotal</span>
+            <span class="text-sm font-medium text-stone-400">Subtotal nuevo envío</span>
             <span class="text-xl font-bold tabular-nums text-white">{{ formatPrice(total) }}</span>
           </div>
 
-          <button type="button" @click="sendOrder" :disabled="!cart.length || enviando"
-            class="mt-5 flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40">
-            <span>{{ enviando ? 'Enviando…' : 'Enviar pedido a cocina' }}</span>
-            <ArrowRight :size="16" />
+          <button
+            type="button"
+            @click="sendOrder"
+            :disabled="!cart.length || enviandoPedido"
+            class="mt-5 flex min-h-[48px] w-full min-w-0 items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] disabled:cursor-not-allowed disabled:opacity-40">
+            <span>{{ enviandoPedido ? 'Enviando...' : 'Enviar pedido a cocina' }}</span>
+            <ArrowRight :size="16" class="btn-icon-shift" />
           </button>
-          <p v-if="avisoPedido" role="status" class="mt-3 text-center text-xs font-semibold text-stone-300">
-            {{ avisoPedido }}
-          </p>
           <p class="mt-3 text-center text-[11px] leading-relaxed text-stone-500">
-            Al enviar, la mesa queda bloqueada temporalmente para evitar pedidos duplicados.
+            El pedido se asigna directamente a la Mesa {{ mesaCliente }} para su preparación y cobro.
           </p>
         </template>
       </aside>
     </section>
 
-    <!-- CAJERO VIEW (MAPA DE MESAS) -->
+    <!-- CAJERO VIEW (MAPA DE MESAS REAL) -->
     <section v-else class="relative mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8 md:px-8">
-      <div class="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div class="mb-5 sm:mb-7 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p class="text-xs font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Panel de control</p>
-          <h1 class="mt-1 font-serif text-3xl font-bold text-white sm:text-4xl">Mapa de mesas</h1>
-          <p class="mt-2 text-sm text-stone-400">
-            Actualización en tiempo real · Última sincronización hace un momento
+          <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Salón en Vivo</p>
+          <h1 class="mt-1 font-serif text-2xl sm:text-3xl font-bold text-white">Mapa de mesas</h1>
+          <p class="hidden sm:block mt-1 text-xs text-stone-400">
+            Estado de mesas, comandas activas y cobro en caja.
           </p>
         </div>
-        <div class="flex items-center gap-2 rounded-full border border-[#1e4830] bg-[#0d2217] px-3.5 py-1.5 text-xs font-semibold text-[#4ade80]">
-          <span class="h-2 w-2 animate-pulse rounded-full bg-[#4ade80]" />
-          <span>Sistema conectado</span>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            @click="cargarMesas(); cargarCatalogo()"
+            :disabled="cargandoMesas"
+            class="flex items-center gap-1.5 rounded-full border border-stone-800 bg-[#17120f] px-3.5 py-1.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white disabled:opacity-50">
+            <RefreshCw :size="13" class="btn-icon-rotate" :class="cargandoMesas ? 'animate-spin text-[#e58a4e]' : ''" />
+            <span>Actualizar</span>
+          </button>
+
+          <div class="flex items-center gap-2 rounded-full border border-[#1e4830] bg-[#0d2217] px-3.5 py-1.5 text-xs font-semibold text-[#4ade80]">
+            <span class="h-2 w-2 animate-pulse rounded-full bg-[#4ade80]" />
+            <span>Sincronizado</span>
+          </div>
         </div>
       </div>
 
-      <div class="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div class="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
         <!-- Salón principal -->
-        <div class="rounded-3xl border border-white/5 bg-[#17120f] p-5 sm:p-7">
-          <div class="mb-6 flex items-center justify-between">
-            <h2 class="font-serif text-2xl font-bold text-white">Salón principal</h2>
+        <div class="rounded-3xl border border-white/5 bg-[#17120f] p-4 sm:p-7">
+          <div class="mb-5 sm:mb-6 flex flex-wrap items-center justify-between gap-2">
+            <h2 class="font-serif text-xl sm:text-2xl font-bold text-white">Salón principal</h2>
             <div class="flex gap-4 text-xs font-semibold text-stone-400">
               <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#4ade80]" /> Libre</span>
               <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#e58a4e]" /> Ocupada</span>
@@ -474,71 +730,133 @@ const freeTable = async () => {
           </div>
 
           <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            <button v-for="number in 12" :key="number" type="button" @click="selectedTable = number"
-              class="group relative min-h-32 rounded-2xl p-4 text-left transition duration-200"
+            <button
+              v-for="mesa in mesas"
+              :key="mesa.numero"
+              type="button"
+              @click="seleccionarMesa(mesa.numero)"
+              class="group relative flex min-h-28 sm:min-h-32 flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left transition duration-200"
               :class="[
-                selectedTable === number ? 'ring-2 ring-[#e58a4e] ring-offset-2 ring-offset-[#0c0a09] shadow-lg shadow-[#e58a4e]/20' : '',
-                occupied.includes(number)
+                selectedTable === mesa.numero ? 'ring-2 ring-[#e58a4e] ring-offset-2 ring-offset-[#0c0a09]' : '',
+                mesa.ocupada
                   ? 'bg-[#3a1e14] border-2 border-[#d97736]'
                   : 'bg-[#163223] border border-[#204933] hover:border-[#32694b]'
               ]">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold uppercase tracking-widest"
-                  :class="occupied.includes(number) ? 'text-[#f09559]' : 'text-[#4ade80]'">
-                  {{ occupied.includes(number) ? 'Ocupada' : 'Libre' }}
+              <div class="flex items-center justify-between w-full">
+                <span
+                  class="text-[10px] font-bold uppercase tracking-widest"
+                  :class="mesa.ocupada ? 'text-[#f09559]' : 'text-[#4ade80]'">
+                  {{ mesa.ocupada ? 'Ocupada' : 'Libre' }}
                 </span>
-                <Bell v-if="occupied.includes(number)" :size="15" class="text-[#f09559]" />
+                <Bell v-if="mesa.ocupada" :size="15" class="text-[#f09559]" />
               </div>
 
-              <span class="mt-7 block font-serif text-3xl font-bold"
-                :class="occupied.includes(number) ? 'text-white' : 'text-[#e6f4ec]'">
-                {{ number }}
-              </span>
-              <span v-if="occupied.includes(number)"
-                class="absolute bottom-3 right-3 text-[10px] font-semibold text-[#f09559]">
-                Pedido activo
-              </span>
+              <div class="flex items-end justify-between gap-2 w-full">
+                <span
+                  class="font-serif text-3xl font-bold"
+                  :class="mesa.ocupada ? 'text-white' : 'text-[#e6f4ec]'">
+                  {{ mesa.numero }}
+                </span>
+                <div v-if="mesa.ocupada && mesa.comanda" class="text-right">
+                  <span class="block text-[10px] font-semibold text-[#f09559]">
+                    #{{ mesa.comanda.numero_pedido }}
+                  </span>
+                  <span class="block text-xs font-bold tabular-nums text-white">
+                    {{ formatPrice(mesa.comanda.total) }}
+                  </span>
+                </div>
+              </div>
             </button>
           </div>
         </div>
 
-        <!-- Comanda Activa -->
-        <aside class="h-fit rounded-3xl border border-white/5 bg-[#17120f] p-6 shadow-2xl">
+        <!-- Comanda Activa (Datos reales de la mesa seleccionada) -->
+        <aside ref="panelComandaRef" class="h-fit scroll-mt-24 rounded-3xl border border-white/5 bg-[#17120f] p-5 sm:p-6 shadow-2xl space-y-5">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Comanda activa</p>
               <h2 class="mt-1 font-serif text-2xl font-bold text-white">Mesa {{ selectedTable }}</h2>
             </div>
-            <span class="rounded-full px-3 py-1 text-xs font-bold"
+            <span
+              class="rounded-full px-3 py-1 text-xs font-bold"
               :class="tableOccupied ? 'border border-[#a2512f]/40 bg-[#3a1e14] text-[#f09559]' : 'border border-[#204933] bg-[#163223] text-[#4ade80]'">
               {{ tableOccupied ? 'Ocupada' : 'Libre' }}
             </span>
           </div>
 
-          <template v-if="tableOccupied">
-            <div class="mt-6 rounded-2xl border border-white/5 bg-[#110d0b] p-4">
+          <template v-if="tableOccupied && comandaActual">
+            <div class="rounded-2xl border border-white/5 bg-[#110d0b] p-4">
               <div class="flex items-center justify-between text-xs text-stone-400">
                 <span class="flex items-center gap-1.5">
-                  <Clock3 :size="14" class="text-stone-500" /> Mesa {{ selectedTable }}
+                  <Clock3 :size="14" class="text-stone-500" />
+                  Ingreso {{ comandaActual.hora_ingreso || 'Recién' }}
                 </span>
-                <span class="font-medium text-stone-400">{{ comandaActiva.length }} ítem(s)</span>
+                <span class="font-medium text-stone-400">Pedido #{{ comandaActual.numero_pedido }}</span>
               </div>
+
               <div class="mt-4 space-y-3">
-                <div v-for="linea in comandaActiva" :key="linea.producto_id" class="flex justify-between text-sm">
-                  <span class="text-stone-200"><b class="text-white">{{ linea.cantidad }}x</b> {{ linea.nombre }}</span>
-                  <span class="font-bold text-white">{{ formatPrice(linea.precio * linea.cantidad) }}</span>
+                <div
+                  v-for="(item, idx) in comandaActual.items"
+                  :key="`${item.producto_id}-${idx}`"
+                  class="flex items-start justify-between gap-2 text-sm">
+                  <div class="min-w-0 flex-1">
+                    <span class="text-stone-200">
+                      <b class="text-white">{{ item.cantidad }}x</b> {{ item.nombre }}
+                    </span>
+                    <p v-if="item.opciones?.length" class="text-[11px] text-stone-500">
+                      {{ item.opciones.join(' · ') }}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 items-center gap-2">
+                    <span class="font-bold tabular-nums text-white">{{ formatPrice(item.subtotal) }}</span>
+                    <button
+                      type="button"
+                      @click="quitarItemComanda(idx)"
+                      :disabled="procesandoMesa"
+                      title="Quitar ítem de la comanda"
+                      class="rounded-lg p-1 text-stone-500 transition hover:bg-rose-950/40 hover:text-rose-300">
+                      <Trash2 :size="13" />
+                    </button>
+                  </div>
                 </div>
-                <p v-if="comandaActiva.length === 0" class="text-sm text-stone-400">
-                  Esta mesa no tiene ninguna comanda enviada todavía.
-                </p>
               </div>
+
               <div class="mt-4 flex justify-between border-t border-stone-800/80 pt-3 text-base font-bold">
                 <span class="text-stone-300">Total</span>
-                <span class="text-white text-lg">{{ formatPrice(totalComanda) }}</span>
+                <span class="text-white text-lg tabular-nums">{{ formatPrice(comandaActual.total) }}</span>
               </div>
             </div>
 
-            <div class="mt-5">
+            <!-- Carga rápida de más platos a la comanda existente -->
+            <div class="rounded-2xl border border-stone-800/70 bg-[#110d0b]/70 p-3.5 space-y-2.5">
+              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Sumar plato a la mesa</p>
+              <Combobox
+                v-model="productoRapidoId"
+                :options="opcionesProductoRapido"
+                size="sm"
+                placeholder="Elegir plato del catálogo..."
+              />
+              <div class="flex items-center gap-2">
+                <input
+                  v-model.number="cantidadRapida"
+                  type="number"
+                  min="1"
+                  max="50"
+                  aria-label="Cantidad"
+                  class="w-20 rounded-xl border border-stone-800 bg-[#17120f] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e]"
+                />
+                <button
+                  type="button"
+                  :disabled="!productoRapidoId || procesandoMesa"
+                  @click="agregarPlatoAMesa"
+                  class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#e58a4e]/40 bg-[#221a15] px-3 py-2 text-xs font-bold text-[#e58a4e] transition hover:bg-[#2c211b] disabled:opacity-45">
+                  <Plus :size="14" class="btn-icon-plus" />
+                  <span>Agregar plato</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
               <Combobox
                 v-model="payment"
                 :options="paymentOptions"
@@ -547,30 +865,74 @@ const freeTable = async () => {
               />
             </div>
 
-            <button type="button" @click="freeTable" :disabled="cobrando"
-              class="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] shadow-lg shadow-[#e58a4e]/10 transition hover:bg-[#ee975e] active:scale-[0.99] disabled:opacity-60">
-              <CircleDollarSign :size="17" /> {{ cobrando ? 'Cobrando…' : 'Cobrar y liberar mesa' }}
-            </button>
+            <div class="space-y-2">
+              <button
+                type="button"
+                @click="freeTable"
+                :disabled="procesandoMesa"
+                class="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-3.5 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] disabled:opacity-50">
+                <CircleDollarSign :size="17" />
+                <span>{{ procesandoMesa ? 'Procesando...' : 'Cobrar y liberar mesa' }}</span>
+              </button>
 
+              <button
+                type="button"
+                @click="cancelarComanda"
+                :disabled="procesandoMesa"
+                class="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-900/40 bg-rose-950/15 px-3 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-950/35 disabled:opacity-50">
+                <X :size="14" /> Cancelar comanda sin cobrar
+              </button>
+            </div>
           </template>
 
-          <p v-if="avisoCobro" role="status" class="mt-4 text-center text-xs font-semibold text-stone-300">
-            {{ avisoCobro }}
-          </p>
-
-          <div v-else class="mt-10 text-center">
-            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#204933] bg-[#163223] text-[#4ade80]">
-              <Check :size="25" />
+          <div v-else class="space-y-5 pt-2">
+            <div class="text-center">
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#204933] bg-[#163223] text-[#4ade80]">
+                <Check :size="25" />
+              </div>
+              <h3 class="mt-4 font-serif text-xl font-bold text-white">Mesa disponible</h3>
+              <p class="mt-1 text-sm text-stone-400">
+                Esperando pedido desde la Carta Digital o carga manual abajo.
+              </p>
             </div>
-            <h3 class="mt-4 font-serif text-xl font-bold text-white">Mesa disponible</h3>
-            <p class="mt-1 text-sm text-stone-400">Esperando un nuevo pedido desde el QR.</p>
+
+            <!-- Carga manual rápida en mesa libre -->
+            <div class="rounded-2xl border border-stone-800/70 bg-[#110d0b]/80 p-3.5 space-y-2.5">
+              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Abrir comanda manual</p>
+              <Combobox
+                v-model="productoRapidoId"
+                :options="opcionesProductoRapido"
+                size="sm"
+                placeholder="Elegir plato del catálogo..."
+              />
+              <div class="flex items-center gap-2">
+                <input
+                  v-model.number="cantidadRapida"
+                  type="number"
+                  min="1"
+                  max="50"
+                  aria-label="Cantidad"
+                  class="w-20 rounded-xl border border-stone-800 bg-[#17120f] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e]"
+                />
+                <button
+                  type="button"
+                  :disabled="!productoRapidoId || procesandoMesa"
+                  @click="agregarPlatoAMesa"
+                  class="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#e58a4e] px-3 py-2 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] disabled:opacity-45">
+                  <Plus :size="14" class="btn-icon-plus" />
+                  <span>Cargar pedido</span>
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
     </section>
 
     <!-- Modal Personalizar Producto (Bottom Sheet en Móvil) -->
-    <div v-if="selected" @click.self="selected = null"
+    <div
+      v-if="selected"
+      @click.self="selected = null"
       class="fixed inset-0 z-50 flex items-end justify-center bg-black/80 backdrop-blur-sm p-0 sm:items-center sm:p-4">
       <div class="max-h-[88dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border border-white/10 bg-[#17120f] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] text-white shadow-2xl sm:rounded-3xl sm:p-6">
         <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-stone-700 sm:hidden" />
@@ -578,28 +940,52 @@ const freeTable = async () => {
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
             <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Personalizá tu pedido</p>
-            <h2 class="mt-1 font-serif text-2xl font-bold text-white">{{ selected.name }}</h2>
+            <h2 class="mt-1 font-serif text-2xl font-bold text-white">{{ selected.nombre }}</h2>
           </div>
-          <button type="button" @click="selected = null" aria-label="Cerrar"
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-[#221a15] hover:text-white active:scale-95 transition">
+          <button
+            type="button"
+            @click="selected = null"
+            aria-label="Cerrar"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-[#221a15] hover:text-white transition">
             <X :size="18" />
           </button>
         </div>
 
         <div class="mt-5 space-y-2.5 sm:mt-6 sm:space-y-3">
-          <p class="text-xs font-bold uppercase tracking-wider text-stone-400">Opciones</p>
-          <label v-for="(option, index) in ['Sin cebolla', 'Papas grandes', 'Salsa extra']" :key="option"
-            class="flex min-h-[48px] cursor-pointer items-center justify-between rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-3 text-sm text-stone-200 hover:border-stone-700 active:scale-[0.99] transition">
+          <p class="text-xs font-bold uppercase tracking-wider text-stone-400">Opciones e indicaciones</p>
+          <label
+            v-for="option in opcionesPersonalizacion"
+            :key="option"
+            class="flex min-h-[46px] cursor-pointer items-center justify-between rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-sm text-stone-200 hover:border-stone-700 transition">
             <span>{{ option }}</span>
-            <input type="checkbox" :default-checked="index === 1" class="h-5 w-5 accent-[#e58a4e]" />
+            <input
+              v-model="opcionesSeleccionadas"
+              type="checkbox"
+              :value="option"
+              class="h-5 w-5 accent-[#e58a4e]"
+            />
+          </label>
+
+          <label class="block pt-1 text-xs font-bold text-stone-400">
+            Nota para cocina (opcional)
+            <input
+              v-model="notaProducto"
+              type="text"
+              maxlength="80"
+              placeholder="Ej: Punto de cocción medio..."
+              class="mt-1.5 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white placeholder:text-stone-600 outline-none focus:border-[#e58a4e]"
+            />
           </label>
         </div>
 
         <div class="mt-6 flex items-center justify-between gap-4 border-t border-stone-800/70 pt-4">
-          <span class="text-xl font-bold tabular-nums text-white">{{ formatPrice(selected.price) }}</span>
-          <button type="button" @click="addToCart(selected.id); selected = null"
-            class="flex min-h-[48px] items-center gap-2 rounded-2xl bg-[#e58a4e] px-5 py-3 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.97]">
-            <Plus :size="16" /> Agregar al carrito
+          <span class="text-xl font-bold tabular-nums text-white">{{ formatPrice(selected.precio) }}</span>
+          <button
+            type="button"
+            :disabled="stockRestanteParaProducto(selected) <= 0"
+            @click="agregarDesdeModal"
+            class="flex min-h-[48px] items-center gap-2 rounded-2xl bg-[#e58a4e] px-5 py-3 text-sm font-bold text-[#190d05] transition hover:bg-[#ee975e] disabled:opacity-45">
+            <Plus :size="16" class="btn-icon-plus" /> Agregar al pedido
           </button>
         </div>
       </div>
@@ -610,31 +996,35 @@ const freeTable = async () => {
       class="relative mx-auto mt-6 flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-2 border-t border-stone-900/80 px-4 pt-5 text-[11px] text-stone-600 sm:px-6 md:px-8"
       :class="view === 'cliente' && (cart.length > 0 || orderSent) ? 'pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] lg:pb-6' : 'pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] lg:pb-6'">
       <span>Carta Digital TrackMenú · Pedidos en mesa</span>
-      <RouterLink v-if="!authState.user" to="/login"
+      <RouterLink
+        v-if="!authState.user"
+        to="/login"
         class="py-1 text-stone-500 underline decoration-stone-700 underline-offset-4 transition hover:text-[#e58a4e] hover:decoration-[#e58a4e]/60">
         Acceso para personal del local
       </RouterLink>
     </footer>
 
-    <!-- Barra Flotante Inferior de Pedido (Solo Móvil < lg, fuera de section para mantener z-index superior) -->
+    <!-- Barra Flotante Inferior de Pedido (Solo Móvil < lg) -->
     <div
       v-if="view === 'cliente' && !mobileCartOpen && (cart.length > 0 || orderSent)"
       class="fixed inset-x-0 bottom-0 z-40 border-t border-stone-900 bg-[#0c0a09] px-3 pt-2.5 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:hidden">
       <button
         type="button"
         @click="mobileCartOpen = true"
-        class="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left shadow-2xl transition active:scale-[0.99]"
+        class="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left shadow-2xl transition"
         :class="orderSent
           ? 'border-[#204933] bg-[#163223] text-white'
           : 'border-[#e58a4e]/40 bg-[#17120f] text-white'">
-        <template v-if="orderSent">
+        <template v-if="orderSent && ultimoPedidoEnviado">
           <div class="flex items-center gap-3 min-w-0">
             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4ade80] text-[#120a05]">
               <Check :size="18" class="stroke-[3]" />
             </span>
             <div class="min-w-0">
-              <p class="truncate text-sm font-bold text-white">Pedido enviado a cocina</p>
-              <p class="text-[11px] text-[#82e1a3]">Tiempo estimado: 20–30 min</p>
+              <p class="truncate text-sm font-bold text-white">
+                Pedido #{{ ultimoPedidoEnviado.numero_pedido }} enviado a cocina
+              </p>
+              <p class="text-[11px] text-[#82e1a3]">Mesa {{ ultimoPedidoEnviado.mesa_numero }} · En preparación</p>
             </div>
           </div>
           <span class="flex shrink-0 items-center gap-1 rounded-xl bg-black/25 px-3 py-1.5 text-xs font-bold text-[#82e1a3]">
@@ -645,10 +1035,12 @@ const freeTable = async () => {
         <template v-else>
           <div class="flex items-center gap-3 min-w-0">
             <span class="flex h-9 min-w-[36px] shrink-0 items-center justify-center rounded-xl bg-[#e58a4e] px-2 text-sm font-extrabold text-[#190d05] tabular-nums">
-              {{ cart.length }}
+              {{ totalUnidadesCarrito }}
             </span>
             <div class="min-w-0">
-              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">Tu pedido · Mesa {{ mesaDelPedido }}</p>
+              <p class="text-[11px] font-bold uppercase tracking-wider text-stone-400">
+                Tu pedido · Mesa {{ mesaCliente }}
+              </p>
               <p class="text-base font-bold tabular-nums text-white">{{ formatPrice(total) }}</p>
             </div>
           </div>

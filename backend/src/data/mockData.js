@@ -45,19 +45,10 @@ export const initialProducts = [
 
 export const initialTables = Array.from({ length: 12 }, (_, index) => {
   const number = index + 1;
-  const isOccupied = [4, 7].includes(number);
   return {
     id: number,
     number,
-    status: isOccupied ? 'ocupada' : 'libre',
-    currentOrder: isOccupied ? {
-      id: 100 + number,
-      time: '20:14',
-      items: [
-        { name: 'Burger clásica', quantity: 1, price: 1890 },
-        { name: 'Papas a la piedra', quantity: 1, price: 950 },
-      ],
-      total: 2840,
-    } : null,
+    status: 'libre',
+    currentOrder: null,
   };
 });

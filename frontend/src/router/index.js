@@ -42,6 +42,30 @@ const router = createRouter({
       component: () => import('@/views/DashboardView.vue'),
       meta: { requiereAutenticacion: true, rolRequerido: 'admin' },
     },
+    {
+      path: '/usuarios',
+      name: 'usuarios',
+      component: () => import('@/views/UsuariosView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: ['admin', 'superadmin'] },
+    },
+    {
+      path: '/usuarios/nuevo',
+      name: 'usuarios-nuevo',
+      component: () => import('@/views/UsuarioPerfilView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: ['admin', 'superadmin'], modo: 'nuevo' },
+    },
+    {
+      path: '/usuarios/:id',
+      name: 'usuario-perfil',
+      component: () => import('@/views/UsuarioPerfilView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: ['admin', 'superadmin'], modo: 'editar' },
+    },
+    {
+      path: '/superadmin',
+      name: 'superadmin',
+      component: () => import('@/views/SuperAdminView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: 'superadmin' },
+    },
   ],
 })
 
@@ -53,15 +77,33 @@ router.beforeEach(async (to, from, next) => {
       return next({ path: '/login', query: { redirect: to.fullPath } })
     }
 
-    // Validación estricta de rol (ej: /dashboard requiere rol 'admin')
-    if (to.meta.rolRequerido && authState.rol !== to.meta.rolRequerido) {
-      return next({ path: '/inicio', query: { denegado: 'true', rol: authState.rol } })
+    // Validación estricta de rol
+    if (to.meta.rolRequerido) {
+      const permitidos = Array.isArray(to.meta.rolRequerido)
+        ? to.meta.rolRequerido
+        : [to.meta.rolRequerido]
+
+      if (!permitidos.includes(authState.rol)) {
+        const destino = authState.rol === 'superadmin' ? '/superadmin' : '/inicio'
+        return next({ path: destino, query: { denegado: 'true', rol: authState.rol } })
+      }
     }
   }
 
-  // Si ya tiene sesión e intenta entrar a login, redirige a productos
+  // Si ya tiene sesión e intenta entrar a login
   if (to.path === '/login' && authState.user) {
+    if (authState.rol === 'superadmin') {
+      return next({ path: '/superadmin' })
+    }
     return next({ path: '/productos' })
+  }
+
+  // El superadmin solo opera en /superadmin y /usuarios; si intenta ir a vistas operativas de local, se redirige a superadmin
+  if (authState.rol === 'superadmin') {
+    const esRutaPermitida = to.path.startsWith('/superadmin') || to.path.startsWith('/usuarios')
+    if (!esRutaPermitida) {
+      return next({ path: '/superadmin' })
+    }
   }
 
   next()

@@ -4,10 +4,10 @@ import {
   ShieldAlert, TrendingUp, Receipt, DollarSign, AlertTriangle, Download,
   Eye, X, Check, History, Clock, Building2, CreditCard, Banknote,
   ArrowRightLeft, FileSpreadsheet, RefreshCw, Ban, ShieldCheck, ChevronRight,
-  Users, UserPlus
+  UserPlus
 } from 'lucide-vue-next'
 import Combobox from '@/components/Combobox.vue'
-import { authState, adminService } from '@/services/api'
+import { adminService } from '@/services/api'
 
 interface DetalleItem {
   id: string
@@ -70,7 +70,6 @@ interface UsuarioMiembro {
   rol: 'admin' | 'empleado' | 'consulta'
   creado_en?: string | null
 }
-
 // Estado reactivo
 const cargando = ref(true)
 const kpis = ref<KpisData>({
@@ -94,22 +93,6 @@ const nombrarUsuario = (id?: string) => {
   const u = usuariosEquipo.value.find((x) => x.usuario_id === id)
   return u?.email || u?.nombre || id
 }
-
-// Gestión de usuarios (solo Admin)
-const opcionesRol = [
-  { value: 'consulta', label: 'Consulta (Solo lectura)' },
-  { value: 'empleado', label: 'Personal / Cajero (Mesas y avisos)' },
-  { value: 'admin', label: 'Administrador (Control total)' },
-]
-const modalCrearUsuarioAbierto = ref(false)
-const creandoUsuario = ref(false)
-const errorUsuario = ref('')
-const nuevoUsuario = ref({
-  nombre: '',
-  email: '',
-  password: '',
-  rol: 'empleado' as 'admin' | 'empleado' | 'consulta',
-})
 
 // Filtros de ventas
 const filtroMetodoPago = ref('')
@@ -251,55 +234,13 @@ function exportarCSV() {
   }
 }
 
-// Alta y gestión de equipo (solo Admin)
-function abrirModalCrearUsuario() {
-  nuevoUsuario.value = { nombre: '', email: '', password: '', rol: 'empleado' }
-  errorUsuario.value = ''
-  modalCrearUsuarioAbierto.value = true
-}
-
-async function crearNuevoUsuario() {
-  errorUsuario.value = ''
-  if (!nuevoUsuario.value.nombre.trim() || !nuevoUsuario.value.email.trim()) {
-    errorUsuario.value = 'Completá el nombre y el correo electrónico.'
-    return
-  }
-  if (nuevoUsuario.value.password.length < 8) {
-    errorUsuario.value = 'La contraseña debe tener al menos 8 caracteres.'
-    return
-  }
-
-  creandoUsuario.value = true
-  const res = await adminService.crearUsuario({ ...nuevoUsuario.value })
-  creandoUsuario.value = false
-
-  if (res.success) {
-    modalCrearUsuarioAbierto.value = false
-    mostrarNotificacion(res.message || 'Usuario creado correctamente.', 'exito')
-    await cargarDashboard()
-  } else {
-    errorUsuario.value = res.message || 'No se pudo crear el usuario.'
-  }
-}
-
-async function actualizarRol(usuarioId: string, nuevoRol: string) {
-  const res = await adminService.cambiarRolUsuario(usuarioId, nuevoRol)
-  if (res.success) {
-    mostrarNotificacion(res.message || 'Permiso actualizado.', 'exito')
-    await cargarDashboard()
-  } else {
-    mostrarNotificacion(res.message || 'No se pudo actualizar el permiso.', 'error')
-    await cargarDashboard()
-  }
-}
-
 onMounted(() => {
   cargarDashboard()
 })
 </script>
 
 <template>
-  <main class="min-h-screen overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+  <main class="min-h-dvh overflow-x-clip bg-[#0c0a09] text-[#f5f2eb]">
     <!-- Notificación Flotante -->
     <transition
       enter-active-class="transform transition ease-out duration-200"
@@ -327,84 +268,85 @@ onMounted(() => {
     <!-- Contenedor Principal del Dashboard -->
     <div class="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 md:px-8 space-y-6">
       <!-- Encabezado de Sección -->
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Visión Global del Negocio</p>
-          <h1 class="mt-1 font-serif text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Panel de Ventas y Movimientos
+          <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e]">Resumen del Negocio</p>
+          <h1 class="mt-1 font-serif text-2xl sm:text-3xl font-bold tracking-tight text-white">
+            Ventas y Movimientos
           </h1>
-          <p class="mt-1 text-xs text-stone-400">
-            Resumen de recaudación del día, tickets cobrados y avisos enviados por el personal.
+          <p class="hidden sm:block mt-1 text-xs text-stone-400">
+            Recaudación del día, comandas cerradas y avisos del local.
           </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
           <button type="button" @click="cargarDashboard" :disabled="cargando"
-            class="flex items-center gap-1.5 rounded-2xl border border-stone-800 bg-[#17120f] px-3.5 py-2.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white disabled:opacity-50">
+            class="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-2xl border border-stone-800 bg-[#17120f] px-3.5 py-2.5 text-xs font-semibold text-stone-300 transition hover:border-stone-700 hover:text-white disabled:opacity-50">
             <RefreshCw :size="14" :class="cargando ? 'animate-spin text-[#e58a4e]' : ''" />
             <span>Actualizar</span>
           </button>
 
           <button type="button" @click="exportarCSV"
-            class="flex items-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-2.5 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
+            class="flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-2.5 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e] active:scale-[0.99]">
             <Download :size="15" />
             <span>Exportar CSV</span>
           </button>
         </div>
       </div>
 
-      <!-- 1. BARRA DE MÉTRICAS (KPI CARDS) -->
-      <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- 1. BARRA DE MÉTRICAS (KPI CARDS: 2x2 en móvil, 4 columnas en desktop) -->
+      <section class="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         <!-- Card 1: Facturación del Día -->
-        <article class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 shadow-sm">
-          <div class="flex items-center justify-between text-xs text-stone-400 font-semibold">
-            <span>Facturación del Día</span>
-            <span class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b] text-[#e58a4e]">
-              <DollarSign :size="16" />
+        <article class="rounded-2xl sm:rounded-3xl border border-stone-800/80 bg-[#17120f] p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2 text-[11px] sm:text-xs text-stone-400 font-semibold">
+            <span class="leading-tight">Facturación del Día</span>
+            <span class="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b] text-[#e58a4e]">
+              <DollarSign :size="15" />
             </span>
           </div>
-          <div class="mt-3">
-            <span class="font-serif text-3xl font-bold text-white tracking-tight">
+          <div class="mt-2.5 sm:mt-3">
+            <span class="font-serif text-xl sm:text-3xl font-bold text-white tracking-tight tabular-nums">
               {{ formatearPrecio(kpis.facturacionTotal) }}
             </span>
-            <p class="mt-1 flex items-center gap-1 text-[11px] text-[#4ade80] font-medium">
-              <TrendingUp :size="13" /> Comandas cobradas hoy
+            <p class="mt-1 flex items-center gap-1 text-[10px] sm:text-[11px] text-[#4ade80] font-medium leading-tight">
+              <TrendingUp :size="12" class="shrink-0" />
+              <span class="truncate">Cobradas hoy</span>
             </p>
           </div>
         </article>
 
         <!-- Card 2: Tickets y Promedio -->
-        <article class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 shadow-sm">
-          <div class="flex items-center justify-between text-xs text-stone-400 font-semibold">
-            <span>Tickets / Ticket Promedio</span>
-            <span class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b] text-[#e58a4e]">
-              <Receipt :size="16" />
+        <article class="rounded-2xl sm:rounded-3xl border border-stone-800/80 bg-[#17120f] p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2 text-[11px] sm:text-xs text-stone-400 font-semibold">
+            <span class="leading-tight">Tickets / Promedio</span>
+            <span class="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b] text-[#e58a4e]">
+              <Receipt :size="15" />
             </span>
           </div>
-          <div class="mt-3">
-            <div class="flex items-baseline gap-2">
-              <span class="font-serif text-3xl font-bold text-white tracking-tight">
+          <div class="mt-2.5 sm:mt-3">
+            <div class="flex items-baseline gap-1.5 flex-wrap">
+              <span class="font-serif text-xl sm:text-3xl font-bold text-white tracking-tight tabular-nums">
                 {{ kpis.ticketsTotal }}
               </span>
-              <span class="text-xs text-stone-400 font-medium">comandas</span>
+              <span class="text-[11px] sm:text-xs text-stone-400 font-medium">comandas</span>
             </div>
-            <p class="mt-1 text-[11px] text-stone-400 font-medium">
-              Promedio: <strong class="text-stone-200">{{ formatearPrecio(kpis.ticketMedio) }}</strong>
+            <p class="mt-1 text-[10px] sm:text-[11px] text-stone-400 font-medium truncate">
+              Prom: <strong class="text-stone-200">{{ formatearPrecio(kpis.ticketMedio) }}</strong>
             </p>
           </div>
         </article>
 
         <!-- Card 3: Mix de Métodos de Pago -->
-        <article class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 shadow-sm">
-          <div class="flex items-center justify-between text-xs text-stone-400 font-semibold mb-2">
-            <span>Mix de Pagos</span>
-            <span class="text-[10px] text-stone-500 font-bold uppercase">Distribución</span>
+        <article class="rounded-2xl sm:rounded-3xl border border-stone-800/80 bg-[#17120f] p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between gap-1 text-[11px] sm:text-xs text-stone-400 font-semibold mb-1.5 sm:mb-2">
+            <span class="truncate">Mix de Pagos</span>
+            <span class="hidden sm:inline text-[10px] text-stone-500 font-bold uppercase">Distribución</span>
           </div>
-          <div class="space-y-2 mt-2">
+          <div class="space-y-1.5 sm:space-y-2 mt-1">
             <div>
-              <div class="flex justify-between text-[11px] font-semibold text-stone-300">
-                <span class="flex items-center gap-1"><Banknote :size="12" class="text-[#e58a4e]" /> Efectivo</span>
-                <span>{{ kpis.pagosPorcentaje.efectivo }}%</span>
+              <div class="flex justify-between text-[10px] sm:text-[11px] font-semibold text-stone-300">
+                <span class="flex items-center gap-1"><Banknote :size="11" class="text-[#e58a4e] shrink-0" /> Efectivo</span>
+                <span class="tabular-nums">{{ kpis.pagosPorcentaje.efectivo }}%</span>
               </div>
               <div class="mt-1 h-1.5 w-full rounded-full bg-stone-900 overflow-hidden">
                 <div class="h-full bg-[#e58a4e] rounded-full" :style="{ width: `${kpis.pagosPorcentaje.efectivo}%` }"></div>
@@ -412,9 +354,9 @@ onMounted(() => {
             </div>
 
             <div>
-              <div class="flex justify-between text-[11px] font-semibold text-stone-300">
-                <span class="flex items-center gap-1"><ArrowRightLeft :size="12" class="text-emerald-400" /> QR / Transf.</span>
-                <span>{{ kpis.pagosPorcentaje.transferencia_qr }}%</span>
+              <div class="flex justify-between text-[10px] sm:text-[11px] font-semibold text-stone-300">
+                <span class="flex items-center gap-1"><ArrowRightLeft :size="11" class="text-emerald-400 shrink-0" /> QR / Transf.</span>
+                <span class="tabular-nums">{{ kpis.pagosPorcentaje.transferencia_qr }}%</span>
               </div>
               <div class="mt-1 h-1.5 w-full rounded-full bg-stone-900 overflow-hidden">
                 <div class="h-full bg-emerald-500 rounded-full" :style="{ width: `${kpis.pagosPorcentaje.transferencia_qr}%` }"></div>
@@ -422,9 +364,9 @@ onMounted(() => {
             </div>
 
             <div>
-              <div class="flex justify-between text-[11px] font-semibold text-stone-300">
-                <span class="flex items-center gap-1"><CreditCard :size="12" class="text-blue-400" /> Tarjeta</span>
-                <span>{{ kpis.pagosPorcentaje.tarjeta }}%</span>
+              <div class="flex justify-between text-[10px] sm:text-[11px] font-semibold text-stone-300">
+                <span class="flex items-center gap-1"><CreditCard :size="11" class="text-blue-400 shrink-0" /> Tarjeta</span>
+                <span class="tabular-nums">{{ kpis.pagosPorcentaje.tarjeta }}%</span>
               </div>
               <div class="mt-1 h-1.5 w-full rounded-full bg-stone-900 overflow-hidden">
                 <div class="h-full bg-blue-500 rounded-full" :style="{ width: `${kpis.pagosPorcentaje.tarjeta}%` }"></div>
@@ -434,40 +376,37 @@ onMounted(() => {
         </article>
 
         <!-- Card 4: Alertas de Stock Crítico -->
-        <article class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 shadow-sm">
-          <div class="flex items-center justify-between text-xs text-stone-400 font-semibold">
-            <span>Stock Crítico (&le; 5 un.)</span>
-            <span class="flex h-8 w-8 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b]"
+        <article class="rounded-2xl sm:rounded-3xl border border-stone-800/80 bg-[#17120f] p-3.5 sm:p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-start justify-between gap-2 text-[11px] sm:text-xs text-stone-400 font-semibold">
+            <span class="leading-tight">Stock Crítico (&le; 5)</span>
+            <span class="flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-xl border border-stone-800 bg-[#110d0b]"
               :class="kpis.stockCritico.length ? 'text-amber-400' : 'text-stone-500'">
-              <AlertTriangle :size="16" />
+              <AlertTriangle :size="15" />
             </span>
           </div>
-          <div class="mt-3">
-            <span class="font-serif text-3xl font-bold tracking-tight"
+          <div class="mt-2.5 sm:mt-3">
+            <span class="font-serif text-xl sm:text-3xl font-bold tracking-tight tabular-nums"
               :class="kpis.stockCritico.length ? 'text-amber-400' : 'text-white'">
               {{ kpis.stockCritico.length }}
             </span>
-            <p v-if="kpis.stockCritico.length" class="mt-1 text-[11px] text-stone-400 truncate">
-              Atención: <strong class="text-stone-200">{{ kpis.stockCritico[0]?.nombre }}</strong> ({{ kpis.stockCritico[0]?.stock }} un.)
+            <p v-if="kpis.stockCritico.length" class="mt-1 text-[10px] sm:text-[11px] text-stone-400 truncate">
+              <strong class="text-stone-200">{{ kpis.stockCritico[0]?.nombre }}</strong> ({{ kpis.stockCritico[0]?.stock }} un.)
             </p>
-            <p v-else class="mt-1 text-[11px] text-[#4ade80]">
-              Inventario en niveles óptimos
+            <p v-else class="mt-1 text-[10px] sm:text-[11px] text-[#4ade80] leading-tight">
+              Stock en buen nivel
             </p>
           </div>
         </article>
       </section>
 
       <!-- 2. HISTORIAL DE VENTAS Y TICKETS (FILTROS Y TABLA) -->
-      <section class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 sm:p-6 shadow-sm space-y-4">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 class="font-serif text-2xl font-bold text-white">Historial de Ventas</h2>
-            <p class="text-xs text-stone-400">Comandas cerradas con trazabilidad de método de pago y anulación.</p>
-          </div>
+      <section class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <h2 class="font-serif text-xl sm:text-2xl font-bold text-white">Historial de Ventas</h2>
 
           <!-- Filtros de búsqueda para Ventas -->
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="w-44">
+          <div class="grid grid-cols-1 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div class="w-full sm:w-44">
               <Combobox
                 v-model="filtroMetodoPago"
                 :options="opcionesMetodoPago"
@@ -475,7 +414,7 @@ onMounted(() => {
                 placeholder="Método de pago"
               />
             </div>
-            <div class="w-40">
+            <div class="w-full sm:w-40">
               <Combobox
                 v-model="filtroEstado"
                 :options="opcionesEstado"
@@ -486,8 +425,77 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- Tabla de Ventas -->
-        <div class="overflow-x-auto">
+        <!-- Tarjetas de Ventas en Móvil (< md) -->
+        <div class="space-y-3 md:hidden">
+          <div v-if="!ventas.length" class="py-8 text-center text-xs text-stone-500">
+            No se encontraron ventas con los filtros seleccionados.
+          </div>
+
+          <article
+            v-for="v in ventas"
+            :key="`card-${v.id}`"
+            class="rounded-2xl border border-stone-800/70 bg-[#110d0b] p-4 space-y-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-mono text-xs font-semibold text-stone-400">#{{ v.id.slice(0, 8) }}</span>
+                  <span class="rounded-full border border-stone-800 bg-[#17120f] px-2 py-0.5 text-[11px] font-bold text-white">
+                    Mesa {{ v.mesa_numero }}
+                  </span>
+                </div>
+                <p class="mt-1 text-[11px] text-stone-400">
+                  {{ formatearFechaHora(v.created_at) }}
+                </p>
+              </div>
+
+              <span class="font-serif text-lg font-bold text-[#e58a4e] tabular-nums shrink-0">
+                {{ formatearPrecio(v.total) }}
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="inline-flex items-center gap-1.5 capitalize text-stone-300 font-medium">
+                <Banknote v-if="v.metodo_pago === 'efectivo'" :size="13" class="text-[#e58a4e]" />
+                <CreditCard v-else-if="v.metodo_pago === 'tarjeta'" :size="13" class="text-blue-400" />
+                <ArrowRightLeft v-else :size="13" class="text-emerald-400" />
+                {{ v.metodo_pago.replace('_', ' ') }}
+              </span>
+
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+                :class="v.estado === 'completada' ? 'border border-[#204933] bg-[#163223] text-[#4ade80]' : 'border border-rose-900/60 bg-[#2b1111] text-rose-300'"
+              >
+                <span class="h-1.5 w-1.5 rounded-full" :class="v.estado === 'completada' ? 'bg-[#4ade80]' : 'bg-rose-400'" />
+                {{ v.estado === 'completada' ? 'Completada' : 'Anulada' }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2 pt-0.5">
+              <button
+                type="button"
+                @click="verDetalleTicket(v)"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-800 bg-[#17120f] px-3 py-2 text-xs font-semibold text-stone-200 transition hover:border-stone-700 hover:text-white"
+              >
+                <Eye :size="13" />
+                <span>Ver Ítems</span>
+              </button>
+
+              <button
+                v-if="v.estado === 'completada'"
+                type="button"
+                @click="iniciarAnulacion(v)"
+                class="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-900/40 bg-rose-950/20 px-3 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-950/40"
+              >
+                <Ban :size="13" />
+                <span>Anular</span>
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <!-- Tabla de Ventas (md+) -->
+        <div class="hidden md:block overflow-x-auto">
           <table class="w-full min-w-[760px] text-left text-xs border-collapse">
             <thead>
               <tr class="border-b border-stone-800/80 text-[10px] font-bold uppercase tracking-[0.16em] text-stone-400 bg-[#130f0d]">
@@ -560,12 +568,9 @@ onMounted(() => {
       </section>
 
       <!-- 3. HISTORIAL DE MOVIMIENTOS Y AVISOS -->
-      <section class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 sm:p-6 shadow-sm space-y-4">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <h2 class="font-serif text-2xl font-bold text-white">Historial de Movimientos y Avisos</h2>
-            <p class="text-xs text-stone-400">Avisos de falta de stock, cambios de precios y tickets anulados, guardados automáticamente.</p>
-          </div>
+      <section class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-4 sm:p-6 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+          <h2 class="font-serif text-xl sm:text-2xl font-bold text-white">Movimientos y Avisos</h2>
           <span class="shrink-0 rounded-full border border-stone-800 bg-[#110d0b] px-3 py-1 text-[11px] font-semibold text-stone-400">
             {{ auditoriaLogs.length }} {{ auditoriaLogs.length === 1 ? 'movimiento' : 'movimientos' }}
           </span>
@@ -645,7 +650,7 @@ onMounted(() => {
                 </span>
                 <span v-else-if="log.accion === 'cambio_rol'">
                   Se actualizaron los permisos de <strong>{{ log.detalles?.nombre || nombrarUsuario(log.detalles?.usuario_afectado) }}</strong>
-                  a <strong class="text-purple-300">{{ log.detalles?.nuevo_rol }}</strong>.
+                  a <strong class="text-purple-300">{{ log.detalles?.nuevo_rol || log.detalles?.rol }}</strong>.
                 </span>
                 <span v-else>
                   {{ JSON.stringify(log.detalles) }}
@@ -659,68 +664,13 @@ onMounted(() => {
           </div>
         </div>
       </section>
-
-      <!-- 4. EQUIPO Y USUARIOS DEL LOCAL -->
-      <section class="rounded-3xl border border-stone-800/80 bg-[#17120f] p-5 sm:p-6 shadow-sm space-y-5">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex items-start gap-3">
-            <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e58a4e]/30 bg-[#221a15] text-[#e58a4e]">
-              <Users :size="18" />
-            </div>
-            <div>
-              <h2 class="font-serif text-2xl font-bold text-white">Equipo y Usuarios del Local</h2>
-              <p class="text-xs text-stone-400">Solo el administrador puede crear cuentas y elegir qué puede hacer cada persona en el sistema.</p>
-            </div>
-          </div>
-
-          <button type="button" @click="abrirModalCrearUsuario"
-            class="flex items-center justify-center gap-2 rounded-2xl bg-[#e58a4e] px-4 py-2.5 text-xs font-bold text-[#190d05] transition hover:bg-[#ee975e]">
-            <UserPlus :size="15" />
-            <span>Crear Nuevo Usuario</span>
-          </button>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-2">
-          <div v-for="miembro in usuariosEquipo" :key="miembro.usuario_id"
-            class="flex flex-col justify-between gap-3 rounded-2xl border border-stone-800/70 bg-[#110d0b] p-4 sm:flex-row sm:items-center">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2">
-                <p class="truncate text-sm font-bold text-white">{{ miembro.nombre }}</p>
-                <span v-if="miembro.usuario_id === authState.user?.id"
-                  class="rounded-full border border-[#e58a4e]/40 bg-[#e58a4e]/10 px-2 py-0.5 text-[10px] font-bold text-[#e58a4e]">
-                  Tu cuenta
-                </span>
-              </div>
-              <p class="truncate text-xs text-stone-400 mt-0.5">{{ miembro.email }}</p>
-            </div>
-
-            <div class="w-full sm:w-64 shrink-0">
-              <div v-if="miembro.usuario_id === authState.user?.id"
-                class="rounded-xl border border-stone-800 bg-[#17120f] px-3 py-2 text-xs font-semibold text-stone-300">
-                Administrador (Control total)
-              </div>
-              <Combobox
-                v-else
-                :modelValue="miembro.rol"
-                :options="opcionesRol"
-                size="sm"
-                @update:modelValue="(nuevoRol) => actualizarRol(miembro.usuario_id, String(nuevoRol))"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div v-if="!usuariosEquipo.length" class="py-6 text-center text-xs text-stone-500">
-          Todavía no hay usuarios cargados en este local.
-        </div>
-      </section>
     </div>
 
     <!-- MODAL DETALLE DE TICKET -->
     <div v-if="modalDetalleAbierto && ventaDetalle"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
       @click.self="modalDetalleAbierto = false">
-      <div class="w-full max-w-lg rounded-3xl border border-stone-800 bg-[#17120f] p-6 text-white shadow-2xl">
+      <div class="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-y-auto rounded-3xl border border-stone-800 bg-[#17120f] p-5 sm:p-6 text-white shadow-2xl">
         <div class="flex items-start justify-between">
           <div>
             <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Detalle de Comanda</p>
@@ -776,9 +726,9 @@ onMounted(() => {
 
     <!-- MODAL DE ANULACIÓN DE TICKET CON RESTITUCIÓN DE STOCK -->
     <div v-if="modalAnularAbierto && ventaAAnular"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
       @click.self="modalAnularAbierto = false">
-      <div class="w-full max-w-md rounded-3xl border border-rose-900/60 bg-[#17120f] p-6 text-white shadow-2xl">
+      <div class="max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl border border-rose-900/60 bg-[#17120f] p-5 sm:p-6 text-white shadow-2xl">
         <div class="flex items-center gap-3">
           <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-900/60 bg-rose-950/40 text-rose-300">
             <Ban :size="18" />
@@ -813,69 +763,6 @@ onMounted(() => {
             <button type="submit" :disabled="procesandoAnulacion"
               class="rounded-xl border border-rose-900/60 bg-rose-900/40 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-900/60 transition disabled:opacity-50">
               {{ procesandoAnulacion ? 'Procesando...' : 'Confirmar Anulación' }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- MODAL CREAR NUEVO USUARIO (SOLO ADMIN) -->
-    <div v-if="modalCrearUsuarioAbierto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-      @click.self="modalCrearUsuarioAbierto = false">
-      <div class="w-full max-w-md rounded-3xl border border-stone-800 bg-[#17120f] p-6 text-white shadow-2xl">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Alta de Personal</p>
-            <h3 class="mt-0.5 font-serif text-2xl font-bold text-white">Crear Nuevo Usuario</h3>
-            <p class="mt-1 text-xs text-stone-400">La cuenta quedará habilitada únicamente dentro de este local.</p>
-          </div>
-          <button type="button" @click="modalCrearUsuarioAbierto = false"
-            class="rounded-full p-2 text-stone-400 hover:bg-[#221a15] hover:text-white transition">
-            <X :size="16" />
-          </button>
-        </div>
-
-        <form class="mt-5 space-y-3.5" @submit.prevent="crearNuevoUsuario">
-          <label class="block text-xs font-bold text-stone-300">
-            Nombre y apellido
-            <input v-model="nuevoUsuario.nombre" type="text" required placeholder="Ej: Sofía González"
-              class="mt-1.5 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
-          </label>
-
-          <label class="block text-xs font-bold text-stone-300">
-            Correo electrónico
-            <input v-model="nuevoUsuario.email" type="email" required placeholder="sofia@tulocal.com"
-              class="mt-1.5 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
-          </label>
-
-          <label class="block text-xs font-bold text-stone-300">
-            Contraseña inicial (mínimo 8 caracteres)
-            <input v-model="nuevoUsuario.password" type="password" minlength="8" required placeholder="••••••••"
-              class="mt-1.5 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition" />
-          </label>
-
-          <div>
-            <Combobox
-              v-model="nuevoUsuario.rol"
-              :options="opcionesRol"
-              label="Nivel de acceso"
-              size="md"
-            />
-          </div>
-
-          <p v-if="errorUsuario" role="alert" class="text-xs font-medium text-rose-400">
-            {{ errorUsuario }}
-          </p>
-
-          <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-stone-800/80">
-            <button type="button" @click="modalCrearUsuarioAbierto = false"
-              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
-              Cancelar
-            </button>
-            <button type="submit" :disabled="creandoUsuario"
-              class="rounded-xl bg-[#e58a4e] px-4 py-2.5 text-xs font-bold text-[#190d05] hover:bg-[#ee975e] transition disabled:opacity-50">
-              {{ creandoUsuario ? 'Creando...' : 'Crear Usuario' }}
             </button>
           </div>
         </form>

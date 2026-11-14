@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { validarDatosUsuario } from '../src/controllers/admin.controller.js';
 import { requireRole } from '../src/middlewares/auth.js';
 import authRoutes from '../src/routes/auth.routes.js';
+import adminRoutes from '../src/routes/admin.routes.js';
+import { initialTables } from '../src/data/mockData.js';
 
 const mockRes = () => {
   const res = { statusCode: 200, body: null };
@@ -80,5 +82,30 @@ test('authRoutes expone el alta propia y las rutas de sesión', () => {
   assert.equal(paths.includes('/me'), true);
   assert.equal(paths.includes('/fundar-organizacion'), true);
   assert.equal(paths.includes('/aceptar-invitacion'), true);
+});
+
+test('adminRoutes registra endpoints para gestión completa de usuarios (PUT y DELETE /usuarios/:id)', () => {
+  const routes = adminRoutes.stack
+    .filter((layer) => layer.route)
+    .map((layer) => ({
+      path: layer.route.path,
+      methods: Object.keys(layer.route.methods),
+    }));
+
+  const putUsuario = routes.find((r) => r.path === '/usuarios/:id' && r.methods.includes('put'));
+  const deleteUsuario = routes.find((r) => r.path === '/usuarios/:id' && r.methods.includes('delete'));
+  const getUsuarios = routes.find((r) => r.path === '/usuarios' && r.methods.includes('get'));
+
+  assert.ok(putUsuario, 'Debe registrar PUT /usuarios/:id');
+  assert.ok(deleteUsuario, 'Debe registrar DELETE /usuarios/:id');
+  assert.ok(getUsuarios, 'Debe registrar GET /usuarios');
+});
+
+test('initialTables inicia con las 12 mesas libres y sin pedidos hardcodeados', () => {
+  assert.equal(initialTables.length, 12);
+  for (const mesa of initialTables) {
+    assert.equal(mesa.status, 'libre');
+    assert.equal(mesa.currentOrder, null);
+  }
 });
 
