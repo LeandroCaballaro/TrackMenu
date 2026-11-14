@@ -53,6 +53,17 @@ export const cambiarRol = async (req, res, next) => {
 
     if (error) throw error;
     if (!data) return noEncontrado(res);
+
+    // Mismo registro que deja /api/admin/usuarios/rol: el historial no depende
+    // de por cuál de las dos rutas se cambió el rol.
+    const { error: errorAuditoria } = await req.auth.db.from('auditoria_logs').insert([{
+      organizacion_id: req.auth.organizacionId,
+      usuario_id: req.auth.usuarioId,
+      accion: 'cambio_rol',
+      detalles: { usuario_afectado: req.params.usuarioId, nuevo_rol: rol },
+    }]);
+    if (errorAuditoria) console.warn('No se pudo registrar la auditoría del cambio de rol:', errorAuditoria.message);
+
     res.json({ success: true, message: 'Rol actualizado correctamente', data });
   } catch (err) {
     next(err);

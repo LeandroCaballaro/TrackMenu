@@ -121,6 +121,10 @@ const payment = ref('Efectivo')
 // Sin conexión con el backend la carta no sale de la base: avisarlo.
 const modoLocal = computed(() => Boolean(authState.user) && !authState.backendConnected)
 
+// El router manda acá con ?denegado=true cuando el rol no alcanza; sin esto
+// el usuario aparecía en otra pantalla sin ninguna explicación.
+const accesoDenegado = computed(() => route.query.denegado === 'true')
+
 const categorias = computed(() => [...new Set(products.value.map((p) => p.category))])
 
 const visibleProducts = computed(() => {
@@ -231,6 +235,10 @@ const freeTable = () => {
 
 <template>
   <main class="relative z-0 min-h-dvh overflow-x-hidden bg-[#0c0a09] text-[#f5f2eb]">
+    <p v-if="accesoDenegado" role="alert"
+      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
+      No tenés permiso para entrar a esa pantalla con tu rol ({{ route.query.rol || authState.rol }}).
+    </p>
     <p v-if="modoLocal" role="status"
       class="relative z-20 w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
       Sin conexión con el servidor: la carta no se está leyendo de la base de datos.

@@ -5,6 +5,10 @@ const STORAGE_DATA_KEY = 'trackmenu_saas_db'
 
 // Cuentas que entraban sin pasar por el backend. Se quitaron, y también se
 // borran de los navegadores que las tengan guardadas de antes.
+// 'consulta' es un rol real desde la migración 006: la app lo tiene que
+// reconocer, antes lo echaba al recargar.
+const ROLES_ASIGNABLES = ['admin', 'empleado', 'consulta']
+
 const CUENTAS_DEMO = ['admin@demo.com', 'empleado@demo.com']
 
 // Semilla inicial con productos para el negocio por defecto
@@ -204,11 +208,7 @@ const getLocalDb = () => {
     const db = JSON.parse(raw)
     if (Array.isArray(db.usuarios)) {
       let updated = false
-      const filtrados = db.usuarios.filter((u) => u.rol !== 'consulta')
-      if (filtrados.length !== db.usuarios.length) {
-        db.usuarios = filtrados
-        updated = true
-      }
+
       const sinDemo = db.usuarios.filter((u) => !CUENTAS_DEMO.includes(u.email?.toLowerCase()))
       if (sinDemo.length !== db.usuarios.length) {
         db.usuarios = sinDemo
@@ -234,12 +234,7 @@ const saveLocalDb = (db) => {
 let savedSession = (() => {
   try {
     const item = localStorage.getItem(STORAGE_SESSION_KEY)
-    const parsed = item ? JSON.parse(item) : null
-    if (parsed && parsed.rol === 'consulta') {
-      localStorage.removeItem(STORAGE_SESSION_KEY)
-      return null
-    }
-    return parsed
+    return item ? JSON.parse(item) : null
   } catch {
     return null
   }
@@ -259,7 +254,7 @@ export const authState = reactive({
   token: savedSession?.token || null,
   user: savedSession?.user || null,
   organizacion: savedSession?.organizacion || null,
-  rol: savedSession?.rol || null, // 'admin' | 'empleado' | null
+  rol: savedSession?.rol || null, // 'admin' | 'empleado' | 'consulta' | null
   backendConnected: Boolean(savedSession?.token && !String(savedSession.token).startsWith('demo_token_')),
 })
 
@@ -338,7 +333,7 @@ export const authService = {
 
   // Permite simular y cambiar de rol al instante para pruebas y verificación
   cambiarRol(nuevoRol) {
-    if (['admin', 'empleado'].includes(nuevoRol)) {
+    if (ROLES_ASIGNABLES.includes(nuevoRol)) {
       authState.rol = nuevoRol
       persistSession()
     }
@@ -1012,7 +1007,7 @@ export const adminService = {
       }
     }
 
-    if (!['admin', 'empleado'].includes(rol)) {
+    if (!ROLES_ASIGNABLES.includes(rol)) {
       return { success: false, message: 'El rol seleccionado no es válido.' }
     }
 
@@ -1102,7 +1097,7 @@ export const adminService = {
       return { success: false, message: 'Solo el administrador puede cambiar permisos.' }
     }
 
-    if (!['admin', 'empleado'].includes(nuevoRol)) {
+    if (!ROLES_ASIGNABLES.includes(nuevoRol)) {
       return { success: false, message: 'Rol inválido.' }
     }
 
@@ -1112,13 +1107,15 @@ export const adminService = {
 
     if (authState.token && !authState.token.startsWith('demo_token_')) {
       try {
-        const res = await fetch('/api/admin/usuarios/rol', {
-          method: 'POST',
+        // /api/miembros acepta los tres roles; /api/admin/usuarios/rol sólo
+        // admin y empleado, así que no podía dejar a nadie en sólo lectura.
+        const res = await fetch(`/api/miembros/${usuarioId}`, {
+          method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${authState.token}`,
           },
-          body: JSON.stringify({ usuario_id: usuarioId, nuevo_rol: nuevoRol }),
+          body: JSON.stringify({ rol: nuevoRol }),
         })
         const json = await res.json()
         if (!res.ok && res.status !== 503) {
