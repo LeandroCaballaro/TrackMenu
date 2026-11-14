@@ -16,6 +16,9 @@ const esSuperAdmin = computed(() => authState.rol === 'superadmin')
 const esAdmin = computed(() => authState.rol === 'admin')
 const esEmpleado = computed(() => authState.rol === 'empleado')
 const estaAutenticado = computed(() => Boolean(authState.user))
+// Sin conexión con el backend lo que se carga queda sólo en este navegador.
+// Hay que verlo, no sólo saberlo.
+const modoLocal = computed(() => estaAutenticado.value && !authState.backendConnected)
 
 const nombreUsuario = computed(() => {
   const u = authState.user
@@ -324,6 +327,11 @@ function cerrarSesion() {
 
     </div>
   </header>
+
+  <p v-if="modoLocal" role="status"
+    class="w-full bg-[#7c2d12] px-4 py-2 text-center text-[11px] font-bold text-amber-50 sm:px-8">
+    Sin conexión con el servidor: lo que cargues queda sólo en este navegador y no llega a la base de datos.
+  </p>
 
   <!-- Panel Lateral Desplegable / Plegable (Móvil y Tablet < lg) -->
   <Teleport to="body">

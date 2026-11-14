@@ -63,6 +63,13 @@ interface AuditLog {
   created_at: string
 }
 
+interface UsuarioMiembro {
+  usuario_id: string
+  nombre: string
+  email: string
+  rol: 'admin' | 'empleado' | 'consulta'
+  creado_en?: string | null
+}
 // Estado reactivo
 const cargando = ref(true)
 const kpis = ref<KpisData>({
@@ -77,6 +84,15 @@ const kpis = ref<KpisData>({
 
 const ventas = ref<Venta[]>([])
 const auditoriaLogs = ref<AuditLog[]>([])
+const usuariosEquipo = ref<UsuarioMiembro[]>([])
+
+// La auditoría guarda el id del usuario afectado: mostrarlo tal cual no le
+// dice nada a nadie, así que se resuelve contra el equipo ya cargado.
+const nombrarUsuario = (id?: string) => {
+  if (!id) return '—'
+  const u = usuariosEquipo.value.find((x) => x.usuario_id === id)
+  return u?.email || u?.nombre || id
+}
 
 // Filtros de ventas
 const filtroMetodoPago = ref('')
@@ -136,13 +152,14 @@ const formatearFechaHora = (iso: string) => {
 // Cargar información consolidada
 async function cargarDashboard() {
   cargando.value = true
-  const [resKpis, resVentas, resAudit] = await Promise.all([
+  const [resKpis, resVentas, resAudit, resUsuarios] = await Promise.all([
     adminService.getKpis(),
     adminService.getVentas({
       metodo_pago: filtroMetodoPago.value,
       estado: filtroEstado.value,
     }),
     adminService.getAuditoria(),
+    adminService.getUsuarios(),
   ])
 
   if (resKpis.success && resKpis.data) {
@@ -153,6 +170,9 @@ async function cargarDashboard() {
   }
   if (resAudit.success && resAudit.data) {
     auditoriaLogs.value = resAudit.data
+  }
+  if (resUsuarios.success && resUsuarios.data) {
+    usuariosEquipo.value = resUsuarios.data
   }
   cargando.value = false
 }
@@ -629,8 +649,8 @@ onMounted(() => {
                   ({{ log.detalles?.email }}) con rol <strong class="text-emerald-300">{{ log.detalles?.rol }}</strong>.
                 </span>
                 <span v-else-if="log.accion === 'cambio_rol'">
-                  Se actualizaron los permisos de <strong>{{ log.detalles?.nombre || log.detalles?.usuario_afectado }}</strong>
-                  a <strong class="text-purple-300">{{ log.detalles?.nuevo_rol }}</strong>.
+                  Se actualizaron los permisos de <strong>{{ log.detalles?.nombre || nombrarUsuario(log.detalles?.usuario_afectado) }}</strong>
+                  a <strong class="text-purple-300">{{ log.detalles?.nuevo_rol || log.detalles?.rol }}</strong>.
                 </span>
                 <span v-else>
                   {{ JSON.stringify(log.detalles) }}

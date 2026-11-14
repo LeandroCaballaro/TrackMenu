@@ -43,6 +43,8 @@ watch(() => route.query.vista, (nuevaVista) => {
     view.value = 'cliente'
   }
 })
+// El router manda acá con ?denegado=true cuando el rol no alcanza.
+const accesoDenegado = computed(() => route.query.denegado === 'true')
 
 watch(() => route.query.mesa, (nuevaMesa) => {
   if (nuevaMesa !== undefined) {
@@ -385,6 +387,11 @@ const freeTable = async () => {
 
 <template>
   <main class="relative z-0 min-h-dvh overflow-x-clip bg-[#0c0a09] text-[#f5f2eb]">
+    <p v-if="accesoDenegado" role="alert"
+      class="relative z-20 w-full bg-[#7f1d1d] px-4 py-2 text-center text-[11px] font-bold text-red-50 sm:px-8">
+      No tenés permiso para entrar a esa pantalla con tu rol ({{ route.query.rol || authState.rol }}).
+    </p>
+
     <!-- Notificación Flotante -->
     <transition
       enter-active-class="transform transition ease-out duration-200"
@@ -407,7 +414,6 @@ const freeTable = async () => {
         </button>
       </div>
     </transition>
-
     <!-- Ambient glow background decoration -->
     <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-40">
       <div class="absolute -top-[20%] left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/15 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
