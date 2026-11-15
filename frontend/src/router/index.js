@@ -66,6 +66,18 @@ const router = createRouter({
       component: () => import('@/views/SuperAdminView.vue'),
       meta: { requiereAutenticacion: true, rolRequerido: 'superadmin' },
     },
+    {
+      path: '/superadmin/negocios/nuevo',
+      name: 'superadmin-negocio-nuevo',
+      component: () => import('@/views/SuperAdminNegocioView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: 'superadmin', modo: 'nuevo' },
+    },
+    {
+      path: '/superadmin/negocios/:id',
+      name: 'superadmin-negocio-editar',
+      component: () => import('@/views/SuperAdminNegocioView.vue'),
+      meta: { requiereAutenticacion: true, rolRequerido: 'superadmin', modo: 'editar' },
+    },
   ],
 })
 

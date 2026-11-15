@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middlewares/auth.js';
 import {
   getSuperAdminKpis,
   getOrganizaciones,
+  getOrganizacion,
   crearOrganizacion,
   actualizarOrganizacion,
   registrarPagoSuscripcion,
@@ -18,6 +19,7 @@ router.use(requireRole('superadmin'));
 
 router.get('/kpis', getSuperAdminKpis);
 router.get('/organizaciones', getOrganizaciones);
+router.get('/organizaciones/:id', getOrganizacion);
 router.post('/organizaciones', crearOrganizacion);
 router.put('/organizaciones/:id', actualizarOrganizacion);
 router.post('/organizaciones/:id/pago', registrarPagoSuscripcion);

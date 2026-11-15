@@ -1616,6 +1616,30 @@ export const superAdminService = {
     return { success: true, data: lista }
   },
 
+  async getOrganizacionById(id) {
+    if (!id) return { success: false, message: 'ID de organización requerido.' }
+
+    if (authState.token && !authState.token.startsWith('demo_token_')) {
+      try {
+        const res = await fetch(`/api/superadmin/organizaciones/${id}`, {
+          headers: { Authorization: `Bearer ${authState.token}` },
+        })
+        const json = await res.json()
+        if (res.ok && json.success && json.data) {
+          return { success: true, data: json.data }
+        }
+      } catch {}
+    }
+
+    const res = await this.getOrganizaciones()
+    if (!res.success) return res
+    const org = (res.data || []).find((o) => o.id === id)
+    if (!org) {
+      return { success: false, message: 'Organización no encontrada.' }
+    }
+    return { success: true, data: org }
+  },
+
   async crearOrganizacion(datos) {
     if (authState.token && !authState.token.startsWith('demo_token_')) {
       try {
