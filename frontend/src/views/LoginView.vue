@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { LogIn } from 'lucide-vue-next'
 import logoIcono from '@/assets/3.png'
-import { authService } from '@/services/api'
+import { authService, authState } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,7 +29,7 @@ async function iniciarSesion() {
     return
   }
 
-  const destino = route.query.redirect || '/productos'
+  const destino = route.query.redirect || (authState.rol === 'superadmin' ? '/superadmin' : '/productos')
   router.push(destino)
 }
 </script>

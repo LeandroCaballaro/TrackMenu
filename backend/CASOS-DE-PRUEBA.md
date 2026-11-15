@@ -7,6 +7,7 @@ y el resultado que el sistema debe dar.
 
 | Cuenta | Rol | Organización |
 |---|---|---|
+| `superadmin@example.org` | superadmin | Negocio A de prueba |
 | `e2e.admin@example.org` | admin | Negocio A de prueba |
 | `e2e.empleado@example.org` | empleado | Negocio A de prueba |
 | `e2e.consulta@example.org` | consulta | Negocio A de prueba |

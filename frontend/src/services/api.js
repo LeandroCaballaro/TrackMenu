@@ -480,7 +480,8 @@ export const authService = {
         return { success: true, message: json.message }
       }
 
-      if (res.status !== 503 && !json.success) {
+      const permiteFallbackLocal = Boolean(localUser && localUser.localOnly && localUser.password === password)
+      if (res.status !== 503 && !json.success && !permiteFallbackLocal) {
         const msg = String(json.message || '')
         if (msg.toLowerCase().includes('invalid login credentials')) {
           return { success: false, message: 'Correo o contraseña incorrectos.' }
@@ -1076,7 +1077,7 @@ export const adminService = {
   },
 
   async getUsuarios() {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede consultar usuarios.', data: [] }
     }
 
@@ -1145,7 +1146,7 @@ export const adminService = {
   },
 
   async getUsuarioById(usuarioId) {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede ver perfiles de usuario.' }
     }
 
@@ -1161,7 +1162,7 @@ export const adminService = {
   },
 
   async crearUsuario({ nombre, email, password, rol = 'empleado', telefono = '', puesto = '', estado = 'activo', notas = '' }) {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede crear nuevos usuarios.' }
     }
 
@@ -1270,7 +1271,7 @@ export const adminService = {
   },
 
   async actualizarUsuario({ id, nombre, email, rol, telefono, puesto, estado, notas, password }) {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede editar información de usuarios.' }
     }
 
@@ -1365,7 +1366,7 @@ export const adminService = {
   },
 
   async eliminarUsuario(usuarioId) {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede eliminar usuarios.' }
     }
 
@@ -1416,7 +1417,7 @@ export const adminService = {
   },
 
   async cambiarRolUsuario(usuarioId, nuevoRol) {
-    if (authState.rol !== 'admin') {
+    if (!['admin', 'superadmin'].includes(authState.rol)) {
       return { success: false, message: 'Solo el administrador puede cambiar permisos.' }
     }
 

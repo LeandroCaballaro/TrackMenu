@@ -26,6 +26,7 @@ BEGIN
 
   FOR cuenta IN
     SELECT * FROM (VALUES
+      ('superadmin@example.org',   'superadmin', 'a'),
       ('e2e.admin@example.org',    'admin',    'a'),
       ('e2e.empleado@example.org', 'empleado', 'a'),
       ('e2e.consulta@example.org', 'consulta', 'a'),
