@@ -25,6 +25,7 @@ Cuentas de demostración, todas con la contraseña `Prueba12345!`:
 | `e2e.empleado@example.org` | empleado | Negocio A de prueba |
 | `e2e.consulta@example.org` | consulta | Negocio A de prueba |
 | `e2e.otraorg@example.org` | administrador | Negocio B de prueba |
+| `superadmin@example.org` | administrador | Negocio A de prueba |
 
 Entrando con las dos últimas se ve, en vivo, que cada negocio tiene su propio
 menú y que un rol de sólo lectura no puede tocar nada.
