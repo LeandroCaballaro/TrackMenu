@@ -30,9 +30,9 @@ BEGIN
       ('e2e.empleado@example.org', 'empleado', 'a'),
       ('e2e.consulta@example.org', 'consulta', 'a'),
       ('e2e.otraorg@example.org',  'admin',    'b'),
-      -- El rol máximo del sistema es 'admin': el dueño del negocio. No existe
-      -- un rol por encima que cruce organizaciones.
-      ('superadmin@example.org',   'admin',    'a')
+      -- Super-administrador de la plataforma: ve y gestiona todas las
+      -- organizaciones. Se lo cuelga de una para que tenga membresía.
+      ('superadmin@example.org',   'superadmin', 'a')
     ) AS t(email, rol, org)
   LOOP
     SELECT id INTO uid FROM auth.users WHERE email = cuenta.email;

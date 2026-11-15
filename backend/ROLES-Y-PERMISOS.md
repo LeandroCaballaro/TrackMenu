@@ -10,10 +10,11 @@ Responde a los puntos 1 a 6 de la etapa final.
 | **empleado** | Encargado o mozo | Mantiene el menú al día: carga productos nuevos y corrige precios y stock durante el servicio. No da de baja productos ni toca las cuentas. |
 | **consulta** | Cocina, caja, un socio | Sólo necesita mirar el menú y los precios. No modifica nada. |
 
-**No hay un rol por encima de `admin`.** Un administrador manda dentro de su
-organización y en ninguna otra: no existe un superadministrador que vea todos
-los negocios, porque eso rompería el aislamiento que sostiene el resto del
-sistema. La cuenta de prueba `superadmin@example.org` es un `admin` común.
+Por encima está el **`superadmin`**: administra la plataforma, no un negocio.
+Ve y gestiona todas las organizaciones (planes, estado de suscripción, bloqueo
+por mora) y es el único que puede modificarlas o darlas de baja. Un `admin`
+manda dentro de su organización y en ninguna otra. La cuenta de prueba es
+`superadmin@example.org`.
 
 El primer usuario que registra un negocio queda como **admin**. Al resto lo suma
 él mismo con una invitación, eligiendo con qué rol entra.
