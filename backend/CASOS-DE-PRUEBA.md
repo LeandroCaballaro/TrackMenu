@@ -11,6 +11,7 @@ y el resultado que el sistema debe dar.
 | `e2e.empleado@example.org` | empleado | Negocio A de prueba |
 | `e2e.consulta@example.org` | consulta | Negocio A de prueba |
 | `e2e.otraorg@example.org` | admin | Negocio B de prueba |
+| `superadmin@example.org` | superadmin | ve todas |
 
 **Automatizado.** Los casos marcados con 🤖 los corren solos:
 

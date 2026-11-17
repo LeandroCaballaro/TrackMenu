@@ -13,7 +13,9 @@ ALTER TABLE public.organizaciones
 
 -- 2. Asegurar que miembros acepte el rol 'superadmin'
 ALTER TABLE public.miembros DROP CONSTRAINT IF EXISTS miembros_rol_check;
-ALTER TABLE public.miembros ADD CONSTRAINT miembros_rol_check CHECK (rol IN ('superadmin', 'admin', 'empleado'));
+-- 'consulta' existe desde la 006 y ya hay miembros con ese rol: sin él, este
+-- ALTER falla con 23514 y la migración entera no se puede aplicar.
+ALTER TABLE public.miembros ADD CONSTRAINT miembros_rol_check CHECK (rol IN ('superadmin', 'admin', 'empleado', 'consulta'));
 
 -- 3. Función helper para identificar si el usuario es superadmin
 CREATE OR REPLACE FUNCTION public.es_superadmin()
