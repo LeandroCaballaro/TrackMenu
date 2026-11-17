@@ -1809,6 +1809,80 @@ export const superAdminService = {
   },
 }
 
+export const DEFAULT_MAPA_CONFIG = {
+  formaLocal: 'rectangular', // 'rectangular' | 'forma_l' | 'forma_u' | 'con_terraza'
+  caja: { x: 12, y: 15, nombre: 'Caja / Cobro' },
+  mesas: [
+    { id: 'm1', numero: 1, x: 26, y: 22, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm2', numero: 2, x: 48, y: 22, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm3', numero: 3, x: 70, y: 22, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm4', numero: 4, x: 26, y: 48, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm5', numero: 5, x: 48, y: 48, forma: 'redonda', capacidad: 2, numeroManual: null },
+    { id: 'm6', numero: 6, x: 70, y: 48, forma: 'redonda', capacidad: 2, numeroManual: null },
+    { id: 'm7', numero: 7, x: 26, y: 74, forma: 'cuadrada', capacidad: 6, numeroManual: null },
+    { id: 'm8', numero: 8, x: 48, y: 74, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm9', numero: 9, x: 70, y: 74, forma: 'cuadrada', capacidad: 4, numeroManual: null },
+    { id: 'm10', numero: 10, x: 88, y: 28, forma: 'redonda', capacidad: 2, numeroManual: null },
+    { id: 'm11', numero: 11, x: 88, y: 52, forma: 'redonda', capacidad: 2, numeroManual: null },
+    { id: 'm12', numero: 12, x: 88, y: 76, forma: 'redonda', capacidad: 2, numeroManual: null },
+  ],
+}
+
+export const calcularDistanciaCaja = (mesa, caja) => {
+  const cx = Number(caja?.x ?? 12)
+  const cy = Number(caja?.y ?? 15)
+  const mx = Number(mesa?.x ?? 50)
+  const my = Number(mesa?.y ?? 50)
+  return Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(my - cy, 2))
+}
+
+export const autoNumerarMesas = (mesas = [], caja = { x: 12, y: 15 }, forzarTodas = false) => {
+  if (!Array.isArray(mesas) || mesas.length === 0) return []
+
+  if (forzarTodas) {
+    const ordenadas = [...mesas].sort((a, b) => calcularDistanciaCaja(a, caja) - calcularDistanciaCaja(b, caja))
+    return ordenadas.map((m, index) => ({
+      ...m,
+      numero: index + 1,
+      numeroManual: null,
+    }))
+  }
+
+  const numerosOcupados = new Set()
+  mesas.forEach((m) => {
+    if (m.numeroManual !== null && m.numeroManual !== undefined && String(m.numeroManual).trim() !== '') {
+      const num = Number(m.numeroManual)
+      if (Number.isInteger(num) && num > 0) {
+        numerosOcupados.add(num)
+      }
+    }
+  })
+
+  const mesasSinManual = mesas
+    .filter((m) => m.numeroManual === null || m.numeroManual === undefined || String(m.numeroManual).trim() === '')
+    .sort((a, b) => calcularDistanciaCaja(a, caja) - calcularDistanciaCaja(b, caja))
+
+  let proximo = 1
+  const asignados = new Map()
+
+  for (const m of mesasSinManual) {
+    while (numerosOcupados.has(proximo)) {
+      proximo++
+    }
+    asignados.set(m.id, proximo)
+    numerosOcupados.add(proximo)
+    proximo++
+  }
+
+  return mesas.map((m) => {
+    if (m.numeroManual !== null && m.numeroManual !== undefined && String(m.numeroManual).trim() !== '') {
+      const num = Number(m.numeroManual)
+      return { ...m, numero: Number.isInteger(num) && num > 0 ? num : m.numero }
+    }
+    return { ...m, numero: asignados.get(m.id) || m.numero }
+  })
+}
+
 const TOTAL_MESAS = 12
 
 const normalizarMetodoPago = (metodoPago = 'efectivo') => {
@@ -1835,6 +1909,53 @@ const headersConAuth = (conJson = false) => {
 
 // Servicio real de Mesas y Pedidos Activos (sincronizado con catálogo, stock y ventas)
 export const mesasService = {
+  obtenerConfigMapa() {
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    try {
+      const key = `trackmenu_mapa_mesas_${orgId}`
+      const guardado = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+      if (guardado) {
+        const parsed = JSON.parse(guardado)
+        if (parsed && Array.isArray(parsed.mesas) && parsed.mesas.length > 0) {
+          return {
+            formaLocal: parsed.formaLocal || 'rectangular',
+            caja: parsed.caja || { x: 12, y: 15, nombre: 'Caja / Cobro' },
+            mesas: parsed.mesas,
+          }
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return JSON.parse(JSON.stringify(DEFAULT_MAPA_CONFIG))
+  },
+
+  guardarConfigMapa(config) {
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    try {
+      const key = `trackmenu_mapa_mesas_${orgId}`
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(config))
+      }
+      return { success: true }
+    } catch (err) {
+      return { success: false, message: 'No se pudo guardar la configuración del mapa.' }
+    }
+  },
+
+  restablecerConfigMapa() {
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    try {
+      const key = `trackmenu_mapa_mesas_${orgId}`
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(key)
+      }
+      return { success: true, data: JSON.parse(JSON.stringify(DEFAULT_MAPA_CONFIG)) }
+    } catch {
+      return { success: false }
+    }
+  },
+
   async listarMesas() {
     const db = getLocalDb()
     const orgId = authState.organizacion?.id || 'org_demo_1'
@@ -1885,23 +2006,34 @@ export const mesasService = {
       }
     }
 
-    const mesas = Array.from({ length: TOTAL_MESAS }, (_, idx) => {
-      const numero = idx + 1
+    const configMapa = this.obtenerConfigMapa()
+    const mesasConfig = Array.isArray(configMapa.mesas) && configMapa.mesas.length > 0
+      ? configMapa.mesas
+      : DEFAULT_MAPA_CONFIG.mesas
+
+    const mesas = mesasConfig.map((mConfig) => {
+      const numero = Number(mConfig.numero)
       const comanda = mapaLocal.get(numero) || null
       return {
+        id: mConfig.id || `m_${numero}`,
         numero,
         ocupada: Boolean(comanda && comanda.items?.length > 0),
         comanda,
+        x: Number(mConfig.x ?? 50),
+        y: Number(mConfig.y ?? 50),
+        forma: mConfig.forma || 'cuadrada',
+        capacidad: Number(mConfig.capacidad || 4),
+        numeroManual: mConfig.numeroManual ?? null,
       }
     })
 
-    return { success: true, data: mesas }
+    return { success: true, data: mesas, configMapa }
   },
 
   async enviarPedido({ mesaNumero, items }) {
     const mesaNum = Number(mesaNumero)
-    if (!Number.isInteger(mesaNum) || mesaNum < 1 || mesaNum > TOTAL_MESAS) {
-      return { success: false, message: `Número de mesa inválido (debe ser entre 1 y ${TOTAL_MESAS}).` }
+    if (!Number.isInteger(mesaNum) || mesaNum < 1) {
+      return { success: false, message: 'Número de mesa inválido.' }
     }
     if (!Array.isArray(items) || items.length === 0) {
       return { success: false, message: 'Agregá al menos un plato del catálogo antes de enviar el pedido.' }

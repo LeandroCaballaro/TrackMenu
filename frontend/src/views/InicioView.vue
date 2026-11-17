@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
+import PlanoMesas from '../components/PlanoMesas.vue'
 import { authState, productosService, mesasService } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus,
@@ -17,22 +18,18 @@ const paymentOptions = [
   { value: 'Transferencia', label: 'Transferencia', icon: ArrowRightLeft },
 ]
 
-const mesaOptions = Array.from({ length: 12 }, (_, idx) => ({
-  value: idx + 1,
-  label: `Mesa ${idx + 1}`,
-}))
-
-const opcionesPersonalizacion = ['Sin cebolla', 'Sin sal', 'Papas grandes', 'Salsa aparte']
-
 const parseMesaQuery = (raw) => {
   const n = Number(raw)
-  return Number.isInteger(n) && n >= 1 && n <= 12 ? n : 1
+  return Number.isInteger(n) && n >= 1 ? n : 1
 }
+
+const opcionesPersonalizacion = ['Sin cebolla', 'Sin sal', 'Papas grandes', 'Salsa aparte']
 
 const formatPrice = (price) => `$ ${Number(price || 0).toLocaleString('es-AR')}`
 
 // Sincronización de vista según rol y query de la URL (?vista=mesas | ?vista=carta)
 const permisoMesas = computed(() => authState.rol === 'admin' || authState.rol === 'empleado')
+const esAdmin = computed(() => authState.rol === 'admin' || authState.rol === 'superadmin')
 const initialView = (route.query.vista === 'mesas' && permisoMesas.value) ? 'cajero' : 'cliente'
 const view = ref(initialView)
 
@@ -58,6 +55,18 @@ const cargandoCatalogo = ref(true)
 const mesas = ref(
   Array.from({ length: 12 }, (_, idx) => ({ numero: idx + 1, ocupada: false, comanda: null })),
 )
+const mesaOptions = computed(() => {
+  if (Array.isArray(mesas.value) && mesas.value.length > 0) {
+    return mesas.value.map((m) => ({
+      value: m.numero,
+      label: `Mesa ${m.numero}`,
+    }))
+  }
+  return Array.from({ length: 12 }, (_, idx) => ({
+    value: idx + 1,
+    label: `Mesa ${idx + 1}`,
+  }))
+})
 const cargandoMesas = ref(false)
 
 // Estado vista Cliente (Carta Digital)
@@ -86,6 +95,14 @@ const seleccionarMesa = (numero) => {
   if (typeof window !== 'undefined' && window.innerWidth < 1024) {
     panelComandaRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+}
+
+function onActualizarMesasConfig() {
+  cargarMesas()
+}
+
+function onNotificarPlano({ mensaje, tipo }) {
+  mostrarFeedback(mensaje, tipo)
 }
 
 // Feedback inline / Toast
@@ -719,56 +736,16 @@ const freeTable = async () => {
       </div>
 
       <div class="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
-        <!-- Salón principal -->
-        <div class="rounded-3xl border border-white/5 bg-[#17120f] p-4 sm:p-7">
-          <div class="mb-5 sm:mb-6 flex flex-wrap items-center justify-between gap-2">
-            <h2 class="font-serif text-xl sm:text-2xl font-bold text-white">Salón principal</h2>
-            <div class="flex gap-4 text-xs font-semibold text-stone-400">
-              <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#4ade80]" /> Libre</span>
-              <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#e58a4e]" /> Ocupada</span>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            <button
-              v-for="mesa in mesas"
-              :key="mesa.numero"
-              type="button"
-              @click="seleccionarMesa(mesa.numero)"
-              class="group relative flex min-h-28 sm:min-h-32 flex-col justify-between rounded-2xl p-3.5 sm:p-4 text-left transition duration-200"
-              :class="[
-                selectedTable === mesa.numero ? 'ring-2 ring-[#e58a4e] ring-offset-2 ring-offset-[#0c0a09]' : '',
-                mesa.ocupada
-                  ? 'bg-[#3a1e14] border-2 border-[#d97736]'
-                  : 'bg-[#163223] border border-[#204933] hover:border-[#32694b]'
-              ]">
-              <div class="flex items-center justify-between w-full">
-                <span
-                  class="text-[10px] font-bold uppercase tracking-widest"
-                  :class="mesa.ocupada ? 'text-[#f09559]' : 'text-[#4ade80]'">
-                  {{ mesa.ocupada ? 'Ocupada' : 'Libre' }}
-                </span>
-                <Bell v-if="mesa.ocupada" :size="15" class="text-[#f09559]" />
-              </div>
-
-              <div class="flex items-end justify-between gap-2 w-full">
-                <span
-                  class="font-serif text-3xl font-bold"
-                  :class="mesa.ocupada ? 'text-white' : 'text-[#e6f4ec]'">
-                  {{ mesa.numero }}
-                </span>
-                <div v-if="mesa.ocupada && mesa.comanda" class="text-right">
-                  <span class="block text-[10px] font-semibold text-[#f09559]">
-                    #{{ mesa.comanda.numero_pedido }}
-                  </span>
-                  <span class="block text-xs font-bold tabular-nums text-white">
-                    {{ formatPrice(mesa.comanda.total) }}
-                  </span>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
+        <!-- Salón y Plano interactivo de mesas -->
+        <PlanoMesas
+          :mesas="mesas"
+          :selected-table="selectedTable"
+          :es-admin="esAdmin"
+          :format-price="formatPrice"
+          @seleccionar-mesa="seleccionarMesa"
+          @actualizar-mesas="onActualizarMesasConfig"
+          @notificar="onNotificarPlano"
+        />
 
         <!-- Comanda Activa (Datos reales de la mesa seleccionada) -->
         <aside ref="panelComandaRef" class="h-fit scroll-mt-24 rounded-3xl border border-white/5 bg-[#17120f] p-5 sm:p-6 shadow-2xl space-y-5">
