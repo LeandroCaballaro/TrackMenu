@@ -26,11 +26,13 @@ BEGIN
 
   FOR cuenta IN
     SELECT * FROM (VALUES
-      ('superadmin@example.org',   'superadmin', 'a'),
       ('e2e.admin@example.org',    'admin',    'a'),
       ('e2e.empleado@example.org', 'empleado', 'a'),
       ('e2e.consulta@example.org', 'consulta', 'a'),
-      ('e2e.otraorg@example.org',  'admin',    'b')
+      ('e2e.otraorg@example.org',  'admin',    'b'),
+      -- Super-administrador de la plataforma: ve y gestiona todas las
+      -- organizaciones. Se lo cuelga de una para que tenga membresía.
+      ('superadmin@example.org',   'superadmin', 'a')
     ) AS t(email, rol, org)
   LOOP
     SELECT id INTO uid FROM auth.users WHERE email = cuenta.email;

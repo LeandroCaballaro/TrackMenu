@@ -11,11 +11,17 @@ CREATE TABLE IF NOT EXISTS public.organizaciones (
 CREATE TABLE IF NOT EXISTS public.miembros (
   usuario_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   organizacion_id UUID NOT NULL REFERENCES public.organizaciones(id) ON DELETE CASCADE,
-  rol TEXT NOT NULL DEFAULT 'empleado' CHECK (rol IN ('admin', 'empleado')),
+  rol TEXT NOT NULL DEFAULT 'empleado' CHECK (rol IN ('admin', 'empleado', 'consulta')),
   creado_en TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS miembros_organizacion_idx ON public.miembros (organizacion_id);
+
+-- Si la tabla ya existía con el CHECK de dos roles, se corrige acá: de lo
+-- contrario 'consulta' no se puede guardar y rompe invitaciones y el panel.
+ALTER TABLE public.miembros DROP CONSTRAINT IF EXISTS miembros_rol_check;
+ALTER TABLE public.miembros ADD CONSTRAINT miembros_rol_check
+  CHECK (rol IN ('admin', 'empleado', 'consulta'));
 
 -- Helpers. SECURITY DEFINER para que las políticas puedan leer miembros sin
 -- recursión de RLS.
