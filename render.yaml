@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: trackmenu
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      # Opcionales (cargar manualmente en el panel de Render si se necesitan):
+      # - FRONTEND_URL: dominios extra permitidos en CORS (separados por coma)
+      # - SUPABASE_SERVICE_ROLE_KEY: clave service_role para operaciones admin en Auth
+

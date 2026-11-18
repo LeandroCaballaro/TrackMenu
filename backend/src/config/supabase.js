@@ -8,10 +8,12 @@ dotenv.config();
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+const supabaseAnonKey =
   process.env.SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  supabaseAnonKey;
 
 export const isSupabaseConfigured = () => {
   return Boolean(
@@ -29,7 +31,7 @@ export const supabase = isSupabaseConfigured()
 // Cliente que actúa como el usuario dueño del token: la base aplica RLS,
 // así la organización y el rol se validan también del lado del servidor.
 export const userClient = (token) =>
-  createClient(supabaseUrl, process.env.SUPABASE_ANON_KEY, {
+  createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
