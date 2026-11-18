@@ -1810,8 +1810,10 @@ export const superAdminService = {
 }
 
 export const DEFAULT_MAPA_CONFIG = {
-  formaLocal: 'rectangular', // 'rectangular' | 'forma_l' | 'forma_u' | 'con_terraza'
+  formaLocal: 'rectangular', // 'rectangular' | 'cuadrada' | 'circular' | 'triangular' | 'forma_l' | 'forma_u' | 'con_terraza' | 'personalizada'
+  dibujoPersonalizado: [],
   caja: { x: 12, y: 15, nombre: 'Caja / Cobro' },
+  entrada: { x: 45, y: 96, nombre: 'Entrada Principal' },
   mesas: [
     { id: 'm1', numero: 1, x: 26, y: 22, forma: 'cuadrada', capacidad: 4, numeroManual: null },
     { id: 'm2', numero: 2, x: 48, y: 22, forma: 'cuadrada', capacidad: 4, numeroManual: null },
@@ -1919,7 +1921,9 @@ export const mesasService = {
         if (parsed && Array.isArray(parsed.mesas) && parsed.mesas.length > 0) {
           return {
             formaLocal: parsed.formaLocal || 'rectangular',
+            dibujoPersonalizado: Array.isArray(parsed.dibujoPersonalizado) ? parsed.dibujoPersonalizado : [],
             caja: parsed.caja || { x: 12, y: 15, nombre: 'Caja / Cobro' },
+            entrada: parsed.entrada || { x: 45, y: 96, nombre: 'Entrada Principal' },
             mesas: parsed.mesas,
           }
         }

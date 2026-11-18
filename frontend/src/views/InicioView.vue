@@ -32,6 +32,7 @@ const permisoMesas = computed(() => authState.rol === 'admin' || authState.rol =
 const esAdmin = computed(() => authState.rol === 'admin' || authState.rol === 'superadmin')
 const initialView = (route.query.vista === 'mesas' && permisoMesas.value) ? 'cajero' : 'cliente'
 const view = ref(initialView)
+const editandoMapa = ref(false)
 
 watch(() => route.query.vista, (nuevaVista) => {
   if (nuevaVista === 'mesas' && permisoMesas.value) {
@@ -742,13 +743,15 @@ const freeTable = async () => {
           :selected-table="selectedTable"
           :es-admin="esAdmin"
           :format-price="formatPrice"
+          :class="editandoMapa ? 'lg:col-span-2' : ''"
           @seleccionar-mesa="seleccionarMesa"
           @actualizar-mesas="onActualizarMesasConfig"
           @notificar="onNotificarPlano"
+          @modo-edicion="editandoMapa = $event"
         />
 
-        <!-- Comanda Activa (Datos reales de la mesa seleccionada) -->
-        <aside ref="panelComandaRef" class="h-fit scroll-mt-24 rounded-3xl border border-white/5 bg-[#17120f] p-5 sm:p-6 shadow-2xl space-y-5">
+        <!-- Comanda Activa (Datos reales de la mesa seleccionada, oculta al editar mapa) -->
+        <aside v-if="!editandoMapa" ref="panelComandaRef" class="h-fit scroll-mt-24 rounded-3xl border border-white/5 bg-[#17120f] p-5 sm:p-6 shadow-2xl space-y-5">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-[11px] font-bold uppercase tracking-[0.16em] text-[#e58a4e]">Comanda activa</p>
