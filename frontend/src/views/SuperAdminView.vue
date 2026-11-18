@@ -7,6 +7,7 @@ import {
   RefreshCw, AlertCircle
 } from 'lucide-vue-next'
 import { superAdminService, authState } from '@/services/api'
+import Combobox from '@/components/Combobox.vue'
 
 const router = useRouter()
 
@@ -29,29 +30,17 @@ const terminoBusqueda = ref('')
 const filtroEstado = ref('todos') // 'todos' | 'al_dia' | 'mora' | 'bloqueado'
 const filtroPlan = ref('todos') // 'todos' | 'basico' | 'pro' | 'enterprise'
 
+const opcionesFiltroPlan = [
+  { value: 'todos', label: 'Todos los planes' },
+  { value: 'basico', label: 'Plan Básico' },
+  { value: 'pro', label: 'Plan Pro' },
+  { value: 'enterprise', label: 'Plan Enterprise' },
+  { value: 'trial', label: 'Prueba Gratuita' },
+]
+
 // Feedback
 const mensajeFeedback = ref({ texto: '', tipo: '' })
 const guardando = ref(false)
-
-// Modal Crear/Editar Negocio
-const modalAbierto = ref(false)
-const modoModal = ref('crear') // 'crear' | 'editar'
-const errorModal = ref('')
-
-const formOrg = ref({
-  id: '',
-  nombre: '',
-  plan: 'pro',
-  monto_mensual: 28000,
-  fecha_vencimiento: '',
-  estado_suscripcion: 'al_dia',
-  bloqueo_mora: false,
-  notas_facturacion: '',
-  admin_nombre: '',
-  admin_email: '',
-  admin_password: '',
-  telefono: '',
-})
 
 // Cargar datos
 async function cargarDatos() {
@@ -144,107 +133,12 @@ const organizacionesFiltradas = computed(() => {
   return lista
 })
 
-// Abrir modal para crear negocio
-function abrirCrear() {
-  modoModal.value = 'crear'
-  errorModal.value = ''
-  const enUnMes = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
-  formOrg.value = {
-    id: '',
-    nombre: '',
-    plan: 'pro',
-    monto_mensual: 28000,
-    fecha_vencimiento: enUnMes,
-    estado_suscripcion: 'al_dia',
-    bloqueo_mora: false,
-    notas_facturacion: '',
-    admin_nombre: '',
-    admin_email: '',
-    admin_password: '',
-    telefono: '',
-  }
-  modalAbierto.value = true
+function irANuevoNegocio() {
+  router.push('/superadmin/negocios/nuevo')
 }
 
-// Abrir modal para editar negocio
-function abrirEditar(org) {
-  modoModal.value = 'editar'
-  errorModal.value = ''
-  const vencimientoStr = org.fecha_vencimiento ? org.fecha_vencimiento.slice(0, 10) : ''
-  formOrg.value = {
-    id: org.id,
-    nombre: org.nombre || '',
-    plan: org.plan || 'pro',
-    monto_mensual: org.monto_mensual || 28000,
-    fecha_vencimiento: vencimientoStr,
-    estado_suscripcion: org.estado_suscripcion || 'al_dia',
-    bloqueo_mora: Boolean(org.bloqueo_mora),
-    notas_facturacion: org.notas_facturacion || '',
-    admin_nombre: org.admin_nombre || '',
-    admin_email: org.admin_email || '',
-    admin_password: '',
-    telefono: org.telefono || '',
-  }
-  modalAbierto.value = true
-}
-
-// Guardar negocio (crear o editar)
-async function guardarNegocio() {
-  errorModal.value = ''
-  const f = formOrg.value
-
-  if (!f.nombre.trim()) {
-    errorModal.value = 'El nombre del negocio es obligatorio.'
-    return
-  }
-
-  guardando.value = true
-
-  if (modoModal.value === 'crear') {
-    const res = await superAdminService.crearOrganizacion({
-      nombre: f.nombre,
-      plan: f.plan,
-      monto_mensual: f.monto_mensual,
-      fecha_vencimiento: f.fecha_vencimiento ? new Date(f.fecha_vencimiento).toISOString() : undefined,
-      estado_suscripcion: f.estado_suscripcion,
-      bloqueo_mora: f.bloqueo_mora,
-      notas_facturacion: f.notas_facturacion,
-      admin_nombre: f.admin_nombre,
-      admin_email: f.admin_email,
-      admin_password: f.admin_password,
-      telefono: f.telefono,
-    })
-    guardando.value = false
-
-    if (!res.success) {
-      errorModal.value = res.message || 'Error al crear el negocio.'
-      return
-    }
-
-    modalAbierto.value = false
-    notificar(`Negocio "${f.nombre}" creado exitosamente.`, 'exito')
-    await cargarDatos()
-  } else {
-    const res = await superAdminService.actualizarOrganizacion(f.id, {
-      nombre: f.nombre,
-      plan: f.plan,
-      monto_mensual: f.monto_mensual,
-      fecha_vencimiento: f.fecha_vencimiento ? new Date(f.fecha_vencimiento).toISOString() : undefined,
-      estado_suscripcion: f.estado_suscripcion,
-      bloqueo_mora: f.bloqueo_mora,
-      notas_facturacion: f.notas_facturacion,
-    })
-    guardando.value = false
-
-    if (!res.success) {
-      errorModal.value = res.message || 'Error al actualizar el negocio.'
-      return
-    }
-
-    modalAbierto.value = false
-    notificar(`Suscripción y datos de "${f.nombre}" actualizados.`, 'exito')
-    await cargarDatos()
-  }
+function irAEditarNegocio(org) {
+  router.push(`/superadmin/negocios/${org.id}`)
 }
 
 // Registrar pago (dejar al día)
@@ -372,7 +266,7 @@ function etiquetaPlan(plan) {
 
           <button
             type="button"
-            @click="abrirCrear"
+            @click="irANuevoNegocio"
             class="btn-icon-plus flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-2xl bg-[#e58a4e] px-4 py-2.5 text-xs sm:text-sm font-bold text-[#190d05] hover:bg-[#ed965c]"
           >
             <Plus :size="16" />
@@ -476,23 +370,34 @@ function etiquetaPlan(plan) {
 
       <!-- BUSCADOR Y FILTROS -->
       <section class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div class="relative flex-1 max-w-md">
-          <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500" />
-          <input
-            v-model="terminoBusqueda"
-            type="text"
-            placeholder="Buscar negocio o correo..."
-            class="w-full rounded-2xl border border-stone-800 bg-[#14110f] py-2.5 pl-10 pr-8 text-xs sm:text-sm text-white placeholder-stone-500 outline-none transition-colors duration-150 focus:border-[#e58a4e]"
-          />
-          <button
-            v-if="terminoBusqueda"
-            type="button"
-            @click="terminoBusqueda = ''"
-            class="btn-inline-clear absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200"
-            aria-label="Limpiar búsqueda"
-          >
-            <X :size="14" />
-          </button>
+        <div class="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-xl">
+          <div class="relative flex-1">
+            <Search :size="15" class="absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-500" />
+            <input
+              v-model="terminoBusqueda"
+              type="text"
+              placeholder="Buscar negocio o correo..."
+              class="w-full rounded-2xl border border-stone-800 bg-[#14110f] py-2.5 pl-10 pr-8 text-xs sm:text-sm text-white placeholder-stone-500 outline-none transition-colors duration-150 focus:border-[#e58a4e]"
+            />
+            <button
+              v-if="terminoBusqueda"
+              type="button"
+              @click="terminoBusqueda = ''"
+              class="btn-inline-clear absolute right-3 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-200"
+              aria-label="Limpiar búsqueda"
+            >
+              <X :size="14" />
+            </button>
+          </div>
+
+          <!-- Filtro por Plan usando Combobox reutilizable -->
+          <div class="w-full sm:w-44 shrink-0">
+            <Combobox
+              v-model="filtroPlan"
+              :options="opcionesFiltroPlan"
+              size="sm"
+            />
+          </div>
         </div>
 
         <div class="flex w-full sm:w-auto max-w-full overflow-x-auto no-scrollbar items-center gap-1 rounded-2xl border border-stone-800/80 bg-[#14110f] p-1 text-xs">
@@ -661,7 +566,7 @@ function etiquetaPlan(plan) {
 
               <button
                 type="button"
-                @click="abrirEditar(org)"
+                @click="irAEditarNegocio(org)"
                 class="rounded-xl border border-stone-800 bg-[#17120f] p-1.5 text-stone-400 hover:bg-[#1e1814] hover:border-stone-700 hover:text-white"
                 title="Editar negocio y suscripción"
                 aria-label="Editar negocio y suscripción"
@@ -684,202 +589,6 @@ function etiquetaPlan(plan) {
         </p>
       </section>
 
-    </div>
-
-    <!-- MODAL CREAR / EDITAR NEGOCIO -->
-    <div
-      v-if="modalAbierto"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-5"
-      @click.self="modalAbierto = false"
-    >
-      <div class="flex max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-3rem)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-stone-800 bg-[#17120f] text-white shadow-2xl">
-        <div class="shrink-0 flex items-start justify-between border-b border-stone-800/80 px-5 pt-4 pb-3 sm:px-6 sm:pt-5">
-          <div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-[#e58a4e]">
-              {{ modoModal === 'crear' ? 'Nuevo Local' : 'Administración de Negocio' }}
-            </span>
-            <h2 class="text-xl font-bold font-girassol text-white mt-0.5">
-              {{ modoModal === 'crear' ? 'Dar de Alta Restaurante' : `Editar ${formOrg.nombre}` }}
-            </h2>
-          </div>
-          <button
-            type="button"
-            @click="modalAbierto = false"
-            class="rounded-xl border border-stone-800 bg-[#110d0b] p-1.5 text-stone-400 hover:bg-[#1a1410] hover:border-stone-700 hover:text-white"
-            aria-label="Cerrar modal"
-          >
-            <X :size="16" />
-          </button>
-        </div>
-
-        <form @submit.prevent="guardarNegocio" class="flex min-h-0 flex-1 flex-col text-xs">
-          <div class="flex-1 overflow-y-auto px-5 py-3.5 sm:px-6 sm:py-4 space-y-3">
-            <div v-if="errorModal" class="rounded-xl border border-rose-500/40 bg-rose-950/30 p-3 text-xs text-rose-300">
-              {{ errorModal }}
-            </div>
-          <!-- Nombre del Negocio -->
-          <div>
-            <label class="block font-semibold text-stone-300">Nombre del Restaurante / Negocio *</label>
-            <input
-              v-model="formOrg.nombre"
-              type="text"
-              required
-              placeholder="Ej: Parrilla Don Julio"
-              class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white placeholder-stone-500 outline-none focus:border-[#e58a4e] transition"
-            />
-          </div>
-
-          <!-- Plan y Cuota Mensual -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-semibold text-stone-300">Plan de Suscripción</label>
-              <select
-                v-model="formOrg.plan"
-                class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-              >
-                <option value="basico">Básico ($18.000 / mes)</option>
-                <option value="pro">Pro ($28.000 / mes)</option>
-                <option value="enterprise">Enterprise ($45.000 / mes)</option>
-                <option value="trial">Prueba Gratuita</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block font-semibold text-stone-300">Monto Mensual ($ ARS)</label>
-              <input
-                v-model="formOrg.monto_mensual"
-                type="number"
-                min="0"
-                step="500"
-                required
-                class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3.5 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-              />
-            </div>
-          </div>
-
-          <!-- Estado de la Suscripción y Vencimiento -->
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block font-semibold text-stone-300">Estado de Pago</label>
-              <select
-                v-model="formOrg.estado_suscripcion"
-                class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-              >
-                <option value="al_dia">✅ Suscripción Al Día</option>
-                <option value="pendiente">⏳ Pago Pendiente</option>
-                <option value="mora">⚠️ En Mora / Vencido</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block font-semibold text-stone-300">Fecha de Vencimiento</label>
-              <input
-                v-model="formOrg.fecha_vencimiento"
-                type="date"
-                required
-                class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-              />
-            </div>
-          </div>
-
-          <!-- Bloqueo preventivo por mora -->
-          <div class="rounded-xl border border-stone-800 bg-[#110d0b] p-3">
-            <label class="flex items-center gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                v-model="formOrg.bloqueo_mora"
-                class="rounded border-stone-700 text-rose-500 focus:ring-0"
-              />
-              <div>
-                <span class="block font-bold text-xs" :class="formOrg.bloqueo_mora ? 'text-rose-400' : 'text-stone-300'">
-                  Suspender acceso por falta de pago
-                </span>
-                <span class="block text-[11px] text-stone-400">
-                  Bloquea las funciones del restaurante hasta que se registre la regularización de la suscripción.
-                </span>
-              </div>
-            </label>
-          </div>
-
-          <!-- Datos de administrador inicial si es creación -->
-          <div v-if="modoModal === 'crear'" class="space-y-3 pt-2 border-t border-stone-800/80">
-            <p class="text-[11px] font-bold uppercase tracking-wider text-[#e58a4e]">
-              Usuario Administrador del Local
-            </p>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block font-semibold text-stone-300">Nombre del Dueño</label>
-                <input
-                  v-model="formOrg.admin_nombre"
-                  type="text"
-                  placeholder="Ej: Marcelo Gallardo"
-                  class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-                />
-              </div>
-              <div>
-                <label class="block font-semibold text-stone-300">Teléfono / WhatsApp</label>
-                <input
-                  v-model="formOrg.telefono"
-                  type="text"
-                  placeholder="+54 11 0000-0000"
-                  class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-                />
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block font-semibold text-stone-300">Email de Ingreso</label>
-                <input
-                  v-model="formOrg.admin_email"
-                  type="email"
-                  placeholder="dueño@restaurante.com"
-                  class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-                />
-              </div>
-              <div>
-                <label class="block font-semibold text-stone-300">Contraseña Inicial</label>
-                <input
-                  v-model="formOrg.admin_password"
-                  type="password"
-                  placeholder="Mínimo 8 caracteres"
-                  class="mt-1 w-full rounded-xl border border-stone-800 bg-[#110d0b] px-3 py-2 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-                />
-              </div>
-            </div>
-          </div>
-
-            <!-- Notas internas de facturación -->
-            <div>
-              <label class="block font-semibold text-stone-300">Notas de Facturación / Cobranzas</label>
-              <textarea
-                v-model="formOrg.notas_facturacion"
-                rows="2"
-                placeholder="Ej: Pago pendiente de confirmación por transferencia bancaria..."
-                class="mt-1 w-full resize-none rounded-xl border border-stone-800 bg-[#110d0b] p-2.5 text-xs text-white outline-none focus:border-[#e58a4e] transition"
-              />
-            </div>
-          </div>
-
-          <div class="shrink-0 flex items-center justify-end gap-3 border-t border-stone-800/80 px-5 py-3 sm:px-6 bg-[#17120f]">
-            <button
-              type="button"
-              @click="modalAbierto = false"
-              class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2 text-xs font-semibold text-stone-300 hover:bg-[#1a1410] hover:border-stone-700 hover:text-white"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              :disabled="guardando"
-              class="flex items-center gap-1.5 rounded-xl bg-[#e58a4e] px-5 py-2 text-xs font-bold text-[#190d05] hover:bg-[#ed965c] disabled:opacity-50"
-            >
-              <Check :size="14" />
-              <span>{{ guardando ? 'Guardando...' : (modoModal === 'crear' ? 'Dar de Alta Negocio' : 'Guardar Cambios') }}</span>
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   </main>
 </template>

@@ -139,6 +139,58 @@ export const getOrganizaciones = async (req, res, next) => {
 };
 
 /**
+ * Obtener detalle de una sola organización para edición y administración.
+ */
+export const getOrganizacion = async (req, res, next) => {
+  try {
+    const db = req.auth.db;
+    const { id } = req.params;
+
+    const { data: org, error } = await db
+      .from('organizaciones')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error && !isMissingTableError(error)) throw error;
+    if (!org) {
+      return res.status(404).json({ success: false, message: 'Organización no encontrada.' });
+    }
+
+    const ahora = new Date();
+    const fechaVenc = org.fecha_vencimiento || null;
+    const vencido = fechaVenc && new Date(fechaVenc) < ahora;
+    let estado = org.estado_suscripcion || 'al_dia';
+    if (vencido && estado === 'al_dia') {
+      estado = 'pendiente';
+    }
+
+    const diasMora = calcularDiasMora(fechaVenc, estado);
+
+    res.json({
+      success: true,
+      data: {
+        id: org.id,
+        nombre: org.nombre,
+        plan: org.plan || 'pro',
+        estado_suscripcion: estado,
+        monto_mensual: Number(org.monto_mensual || 20000),
+        fecha_vencimiento: fechaVenc,
+        dias_mora: diasMora,
+        bloqueo_mora: Boolean(org.bloqueo_mora),
+        notas_facturacion: org.notas_facturacion || '',
+        admin_nombre: org.admin_nombre || '',
+        admin_email: org.admin_email || '',
+        telefono: org.telefono || '',
+        creado_en: org.creado_en,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * Creación de una nueva organización / local por parte del SuperAdmin.
  */
 export const crearOrganizacion = async (req, res, next) => {
