@@ -9,6 +9,7 @@ import {
   mesasService,
   reservasService,
   obtenerFechaHoyLocal,
+  sincronizarConServidor,
 } from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus,
@@ -222,6 +223,8 @@ async function cargarMesas() {
 }
 
 onMounted(async () => {
+  // El plano y las reservas viven en la base: se traen antes de pintar.
+  await sincronizarConServidor()
   await Promise.all([cargarCatalogo(), cargarMesas()])
   sincronizarReservaCliente()
 
