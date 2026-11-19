@@ -51,6 +51,10 @@ export const requireAuth = async (req, res, next) => {
 };
 
 export const requireRole = (...roles) => (req, res, next) => {
+  // El superadministrador de la plataforma cumple cualquier rol pedido: sin
+  // esto recibia 403 en todo lo operativo y veia media aplicacion.
+  if (req.auth.rol === 'superadmin' && !roles.includes('superadmin')) return next();
+
   if (!roles.includes(req.auth.rol)) {
     return res.status(403).json({
       success: false,
