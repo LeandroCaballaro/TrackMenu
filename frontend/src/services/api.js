@@ -2391,3 +2391,337 @@ export const comandasService = {
     }
   },
 }
+
+export const obtenerFechaHoyLocal = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+const horaAMinutos = (horaStr = '') => {
+  const [h, m] = String(horaStr).split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return -1
+  return h * 60 + m
+}
+
+export const HORARIOS_RESERVA = [
+  '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
+  '19:00', '19:30', '20:00', '20:30', '21:00', '21:30',
+  '22:00', '22:30', '23:00', '23:30',
+]
+
+const DURACION_RESERVA_MIN = 90
+export const SENA_POR_PERSONA = 2500
+export const calcularMontoSena = (personas = 1) => Math.max(1, Number(personas) || 1) * SENA_POR_PERSONA
+
+export const generarCodigoReserva = (longitud = 8) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let codigo = ''
+  for (let i = 0; i < longitud; i++) {
+    codigo += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return codigo.toUpperCase()
+}
+
+export const reservasService = {
+  _storageKey() {
+    const orgId = authState.organizacion?.id || 'org_demo_1'
+    return `trackmenu_reservas_${orgId}`
+  },
+
+  listarReservas() {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(this._storageKey()) : null
+      const lista = raw ? JSON.parse(raw) : []
+      if (!Array.isArray(lista)) return []
+      return lista
+        .filter((r) => r && r.estado !== 'cancelada')
+        .sort((a, b) => {
+          if (a.fecha !== b.fecha) return String(a.fecha).localeCompare(String(b.fecha))
+          return horaAMinutos(a.hora) - horaAMinutos(b.hora)
+        })
+    } catch {
+      return []
+    }
+  },
+
+  _guardarLista(lista) {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(this._storageKey(), JSON.stringify(lista))
+      }
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  obtenerReservasPorFecha(fecha = obtenerFechaHoyLocal()) {
+    return this.listarReservas().filter((r) => r.fecha === fecha)
+  },
+
+  verificarDisponibilidad({ fecha, hora, personas }) {
+    if (!fecha || !hora || !personas) {
+      return {
+        disponible: false,
+        mesasDisponibles: [],
+        mesaSugerida: null,
+        totalAdecuadas: 0,
+        mensaje: 'Seleccioná día, horario y cantidad de personas para consultar disponibilidad.',
+      }
+    }
+
+    const cantPersonas = Math.max(1, Number(personas) || 1)
+    const minSolicitado = horaAMinutos(hora)
+    if (minSolicitado < 0) {
+      return {
+        disponible: false,
+        mesasDisponibles: [],
+        mesaSugerida: null,
+        totalAdecuadas: 0,
+        mensaje: 'El horario seleccionado no es válido.',
+      }
+    }
+
+    const hoy = obtenerFechaHoyLocal()
+    if (fecha < hoy) {
+      return {
+        disponible: false,
+        mesasDisponibles: [],
+        mesaSugerida: null,
+        totalAdecuadas: 0,
+        mensaje: 'No es posible reservar en una fecha pasada.',
+      }
+    }
+
+    if (fecha === hoy) {
+      const ahora = new Date()
+      const minAhora = ahora.getHours() * 60 + ahora.getMinutes()
+      if (minSolicitado < minAhora - 15) {
+        return {
+          disponible: false,
+          mesasDisponibles: [],
+          mesaSugerida: null,
+          totalAdecuadas: 0,
+          mensaje: 'Ese horario de hoy ya pasó. Elegí un horario posterior.',
+        }
+      }
+    }
+
+    const configMapa = mesasService.obtenerConfigMapa()
+    const mesasConfig = Array.isArray(configMapa.mesas) && configMapa.mesas.length > 0
+      ? configMapa.mesas
+      : DEFAULT_MAPA_CONFIG.mesas
+
+    // Ordenar mesas adecuadas de menor capacidad suficiente a mayor (optimiza espacio)
+    const adecuadas = [...mesasConfig]
+      .filter((m) => Number(m.capacidad || 4) >= cantPersonas)
+      .sort((a, b) => {
+        const capDiff = Number(a.capacidad || 4) - Number(b.capacidad || 4)
+        if (capDiff !== 0) return capDiff
+        return Number(a.numero) - Number(b.numero)
+      })
+
+    if (adecuadas.length === 0) {
+      return {
+        disponible: false,
+        mesasDisponibles: [],
+        mesaSugerida: null,
+        totalAdecuadas: 0,
+        mensaje: `No contamos con mesas de capacidad para ${cantPersonas} personas en un solo grupo.`,
+      }
+    }
+
+    const reservasDelDia = this.obtenerReservasPorFecha(fecha)
+    const db = getLocalDb()
+    const comandasActivas = Array.isArray(db.comandasActivas) ? db.comandasActivas : []
+    const ahora = new Date()
+    const minAhora = ahora.getHours() * 60 + ahora.getMinutes()
+    const esInmediata = fecha === hoy && Math.abs(minSolicitado - minAhora) <= 45
+
+    const mesasDisponibles = adecuadas.filter((mesa) => {
+      const num = Number(mesa.numero)
+      // Si la reserva es inmediata y la mesa está ocupada actualmente con comanda abierta, no está disponible
+      if (esInmediata && comandasActivas.some((c) => Number(c.mesa_numero) === num)) {
+        return false
+      }
+      // Verificar conflicto horario con otras reservas de la misma mesa
+      const hayConflicto = reservasDelDia.some((r) => {
+        if (Number(r.mesa_numero) !== num) return false
+        const minRes = horaAMinutos(r.hora)
+        return Math.abs(minRes - minSolicitado) < DURACION_RESERVA_MIN
+      })
+      return !hayConflicto
+    })
+
+    const mesaSugerida = mesasDisponibles[0] || null
+    const disponible = mesasDisponibles.length > 0
+
+    return {
+      disponible,
+      mesasDisponibles,
+      mesaSugerida,
+      totalAdecuadas: adecuadas.length,
+      mensaje: disponible
+        ? `¡Hay disponibilidad! ${mesasDisponibles.length} ${mesasDisponibles.length === 1 ? 'mesa libre' : 'mesas libres'} (Mesa ${mesaSugerida.numero} para ${mesaSugerida.capacidad} pers.).`
+        : `Sin disponibilidad para ${cantPersonas} personas a las ${hora} hs. Probá con otro horario.`,
+    }
+  },
+
+  horariosAlternativosDisponibles({ fecha, personas }) {
+    if (!fecha || !personas) return []
+    return HORARIOS_RESERVA.filter((h) => this.verificarDisponibilidad({ fecha, hora: h, personas }).disponible)
+  },
+
+  crearReserva({
+    fecha,
+    hora,
+    personas,
+    nombre_cliente,
+    telefono = '',
+    notas = '',
+    sena_pagada = false,
+    sena_metodo = 'mercadopago',
+    sena_comprobante = '',
+  }) {
+    const nombreLimpio = String(nombre_cliente || '').trim()
+    if (!nombreLimpio) {
+      return { success: false, message: 'Ingresá tu nombre para confirmar la reserva.' }
+    }
+
+    if (!sena_pagada) {
+      return {
+        success: false,
+        message: 'Debés confirmar el pago de la seña con Mercado Pago antes de confirmar la reserva.',
+      }
+    }
+
+    const comprobanteLimpio = String(sena_comprobante || '').trim().toUpperCase() || `MP-${generarCodigoReserva(6)}`
+
+    const check = this.verificarDisponibilidad({ fecha, hora, personas })
+    if (!check.disponible || !check.mesaSugerida) {
+      return { success: false, message: check.mensaje || 'No hay disponibilidad en ese horario.' }
+    }
+
+    const cantPersonas = Number(personas)
+    const senaMonto = calcularMontoSena(cantPersonas)
+    const codigoConfirmacion = generarCodigoReserva(8)
+
+    const nueva = {
+      id: `res_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      codigo_confirmacion: codigoConfirmacion,
+      fecha,
+      hora,
+      personas: cantPersonas,
+      mesa_numero: Number(check.mesaSugerida.numero),
+      mesa_capacidad: Number(check.mesaSugerida.capacidad || 4),
+      nombre_cliente: nombreLimpio,
+      telefono: String(telefono || '').trim(),
+      notas: String(notas || '').trim(),
+      sena_monto: senaMonto,
+      sena_pagada: true,
+      sena_metodo: String(sena_metodo || 'mercadopago'),
+      sena_comprobante: comprobanteLimpio,
+      asistencia_confirmada: false,
+      asistencia_confirmada_en: null,
+      estado: 'confirmada',
+      creada_en: new Date().toISOString(),
+    }
+
+    const todas = this.listarReservas()
+    todas.push(nueva)
+    if (!this._guardarLista(todas)) {
+      return { success: false, message: 'No se pudo guardar la reserva.' }
+    }
+
+    this.guardarCodigoReservaCliente(codigoConfirmacion)
+
+    return {
+      success: true,
+      data: nueva,
+      message: `Reserva confirmada (${codigoConfirmacion}) para ${nueva.personas} personas el ${nueva.fecha} a las ${nueva.hora} hs (Mesa ${nueva.mesa_numero}).`,
+    }
+  },
+
+  obtenerReservaPorCodigo(codigo) {
+    const codigoLimpio = String(codigo || '').trim().toUpperCase()
+    if (!codigoLimpio) return null
+    return this.listarReservas().find(
+      (r) => String(r.codigo_confirmacion || '').toUpperCase() === codigoLimpio
+    ) || null
+  },
+
+  guardarCodigoReservaCliente(codigo) {
+    try {
+      if (typeof window !== 'undefined' && codigo) {
+        localStorage.setItem('trackmenu_cliente_reserva_codigo', String(codigo).trim().toUpperCase())
+      }
+    } catch {
+      // ignore
+    }
+  },
+
+  obtenerCodigoReservaCliente() {
+    try {
+      return typeof window !== 'undefined'
+        ? localStorage.getItem('trackmenu_cliente_reserva_codigo') || ''
+        : ''
+    } catch {
+      return ''
+    }
+  },
+
+  confirmarLlegadaPorCodigo(codigo, mesaNumero = null) {
+    const codigoLimpio = String(codigo || '').trim().toUpperCase()
+    if (!codigoLimpio) {
+      return { success: false, message: 'Ingresá el código de reserva del cliente.' }
+    }
+
+    const todas = this.listarReservas()
+    const idx = todas.findIndex((r) => {
+      if (String(r.codigo_confirmacion || '').toUpperCase() !== codigoLimpio) return false
+      if (mesaNumero !== null && Number(r.mesa_numero) !== Number(mesaNumero)) return false
+      return true
+    })
+
+    if (idx === -1) {
+      return {
+        success: false,
+        message: mesaNumero !== null
+          ? `El código ${codigoLimpio} no coincide con ninguna reserva de la Mesa ${mesaNumero}.`
+          : `No se encontró ninguna reserva activa con el código ${codigoLimpio}.`,
+      }
+    }
+
+    if (todas[idx].asistencia_confirmada) {
+      return {
+        success: false,
+        message: `La reserva ${codigoLimpio} (Mesa ${todas[idx].mesa_numero}) ya fue confirmada en el local.`,
+      }
+    }
+
+    todas[idx] = {
+      ...todas[idx],
+      asistencia_confirmada: true,
+      asistencia_confirmada_en: new Date().toISOString(),
+    }
+
+    if (!this._guardarLista(todas)) {
+      return { success: false, message: 'No se pudo actualizar la reserva.' }
+    }
+
+    return {
+      success: true,
+      data: todas[idx],
+      message: `¡Llegada confirmada! Mesa ${todas[idx].mesa_numero} (${todas[idx].nombre_cliente}) habilitada.`,
+    }
+  },
+
+  cancelarReserva(id) {
+    const todas = this.listarReservas().filter((r) => r.id !== id)
+    const ok = this._guardarLista(todas)
+    return { success: ok }
+  },
+}

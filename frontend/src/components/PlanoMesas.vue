@@ -4,7 +4,7 @@ import {
   Pencil, Move, Plus, Trash2, Check, RotateCcw, Save, CircleDollarSign,
   Bell, Layers, LayoutGrid, Info, X, Sparkles, Sliders, CheckCircle2,
   Store, Users, AlertCircle, RefreshCw, Circle, Square, Triangle,
-  PenTool, Undo2, Redo2, Eraser, Hand, Minus
+  PenTool, Undo2, Redo2, Eraser, Hand, Minus, Clock, CalendarCheck
 } from 'lucide-vue-next'
 import {
   calcularDistanciaCaja,
@@ -25,6 +25,10 @@ const props = defineProps({
   esAdmin: {
     type: Boolean,
     default: false
+  },
+  reservas: {
+    type: Array,
+    default: () => []
   },
   formatPrice: {
     type: Function,
@@ -812,15 +816,34 @@ const mesaEditando = computed(() => {
   return configLocal.value.mesas.find((m) => m.id === mesaEditandoId.value) || null
 })
 
-// Lista combinada de mesas con estado de ocupación para renderizar en el plano
+// Lista combinada de mesas con estado de ocupación y reserva activa para renderizar en el plano
 const mesasParaRender = computed(() => {
+  const ahora = new Date()
+  const minAhora = ahora.getHours() * 60 + ahora.getMinutes()
+
   return configLocal.value.mesas.map((m) => {
     // Si viene comanda de props, enlazarla
     const propMesa = props.mesas.find((pm) => pm.numero === m.numero || pm.id === m.id)
+    const reservasMesa = (props.reservas || []).filter(
+      (r) => Number(r.mesa_numero) === Number(m.numero) && r.estado !== 'cancelada'
+    )
+
+    // Priorizar reserva en curso o próxima (que no haya vencido hace más de 90 min)
+    let reservaActiva = null
+    if (reservasMesa.length > 0) {
+      const vigentes = reservasMesa.filter((r) => {
+        const [hh, mm] = String(r.hora || '').split(':').map(Number)
+        if (!Number.isFinite(hh) || !Number.isFinite(mm)) return true
+        return hh * 60 + mm >= minAhora - 90
+      })
+      reservaActiva = vigentes[0] || reservasMesa[0]
+    }
+
     return {
       ...m,
       ocupada: propMesa?.ocupada ?? m.ocupada ?? false,
       comanda: propMesa?.comanda ?? m.comanda ?? null,
+      reservaActiva,
     }
   })
 })
@@ -1576,6 +1599,10 @@ function verComandaDesdeContexto() {
             <span class="h-3 w-3 rounded-md border-2 border-[#d97736] bg-[#3a1e14]" />
             <span>Mesa Ocupada</span>
           </span>
+          <span class="flex items-center gap-1.5">
+            <span class="h-3 w-3 rounded-md border-2 border-violet-400 bg-[#22193a]" />
+            <span>Mesa Reservada</span>
+          </span>
           <span class="flex items-center gap-1.5 text-amber-300">
             <CircleDollarSign :size="14" class="text-amber-400" />
             <span>Punto de Caja / Cobro</span>
@@ -1983,7 +2010,9 @@ function verComandaDesdeContexto() {
             esAdmin ? 'cursor-grab active:cursor-grabbing hover:scale-105' : 'cursor-pointer hover:scale-105',
             mesa.ocupada
               ? 'bg-[#3a1e14] border-2 border-[#d97736] text-white shadow-lg shadow-orange-950/40'
-              : 'bg-[#163223] border border-[#204933] text-[#e6f4ec] hover:border-[#32694b]'
+              : mesa.reservaActiva
+                ? 'bg-[#22193a] border-2 border-violet-400 text-violet-50 shadow-lg shadow-violet-950/40'
+                : 'bg-[#163223] border border-[#204933] text-[#e6f4ec] hover:border-[#32694b]'
           ]"
           class="absolute flex flex-col items-center justify-center p-2 transition-transform duration-150">
           
@@ -2011,6 +2040,7 @@ function verComandaDesdeContexto() {
               {{ mesa.numero }}
             </span>
             <Bell v-if="mesa.ocupada" :size="12" class="text-[#f09559] animate-bounce" />
+            <Clock v-else-if="mesa.reservaActiva" :size="11" class="text-violet-300" />
           </div>
 
           <!-- Total de comanda si está ocupada -->
@@ -2020,11 +2050,25 @@ function verComandaDesdeContexto() {
             {{ formatPrice(mesa.comanda.total) }}
           </span>
 
+          <!-- Horario de reserva si está reservada -->
+          <span
+            v-else-if="mesa.reservaActiva"
+            class="mt-0.5 block text-[9px] font-bold tabular-nums text-violet-300 leading-none">
+            {{ mesa.reservaActiva.hora }}hs
+          </span>
+
           <!-- Capacidad si está libre -->
           <span
             v-else
             class="mt-0.5 block text-[9px] font-semibold text-[#4ade80]/90 leading-none">
             {{ mesa.capacidad }}p
+          </span>
+
+          <!-- Badge de próxima reserva si además está ocupada -->
+          <span
+            v-if="mesa.ocupada && mesa.reservaActiva"
+            class="absolute -bottom-2.5 rounded-full border border-violet-400/60 bg-[#22193a] px-1.5 py-0.5 text-[8px] font-bold text-violet-200 leading-none shadow">
+            {{ mesa.reservaActiva.hora }}hs
           </span>
 
           <!-- Badge en modo edición para ver si es manual o auto -->
@@ -2048,6 +2092,7 @@ function verComandaDesdeContexto() {
         <div class="flex gap-4 text-xs font-semibold text-stone-400">
           <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#4ade80]" /> Libre</span>
           <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-[#e58a4e]" /> Ocupada</span>
+          <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-violet-400" /> Reservada</span>
         </div>
       </div>
 
@@ -2062,21 +2107,24 @@ function verComandaDesdeContexto() {
             selectedTable === mesa.numero ? 'ring-2 ring-[#e58a4e] ring-offset-2 ring-offset-[#0c0a09]' : '',
             mesa.ocupada
               ? 'bg-[#3a1e14] border-2 border-[#d97736]'
-              : 'bg-[#163223] border border-[#204933] hover:border-[#32694b]'
+              : mesa.reservaActiva
+                ? 'bg-[#22193a] border-2 border-violet-400'
+                : 'bg-[#163223] border border-[#204933] hover:border-[#32694b]'
           ]">
           <div class="flex items-center justify-between w-full">
             <span
               class="text-[10px] font-bold uppercase tracking-widest"
-              :class="mesa.ocupada ? 'text-[#f09559]' : 'text-[#4ade80]'">
-              {{ mesa.ocupada ? 'Ocupada' : 'Libre' }}
+              :class="mesa.ocupada ? 'text-[#f09559]' : mesa.reservaActiva ? 'text-violet-300' : 'text-[#4ade80]'">
+              {{ mesa.ocupada ? 'Ocupada' : mesa.reservaActiva ? 'Reservada' : 'Libre' }}
             </span>
             <Bell v-if="mesa.ocupada" :size="15" class="text-[#f09559]" />
+            <Clock v-else-if="mesa.reservaActiva" :size="15" class="text-violet-300" />
           </div>
 
           <div class="flex items-end justify-between gap-2 w-full">
             <span
               class="font-serif text-3xl font-bold"
-              :class="mesa.ocupada ? 'text-white' : 'text-[#e6f4ec]'">
+              :class="mesa.ocupada || mesa.reservaActiva ? 'text-white' : 'text-[#e6f4ec]'">
               {{ mesa.numero }}
             </span>
             <div v-if="mesa.ocupada && mesa.comanda" class="text-right">
@@ -2085,6 +2133,14 @@ function verComandaDesdeContexto() {
               </span>
               <span class="block text-xs font-bold tabular-nums text-white">
                 {{ formatPrice(mesa.comanda.total) }}
+              </span>
+            </div>
+            <div v-else-if="mesa.reservaActiva" class="text-right">
+              <span class="block text-xs font-bold tabular-nums text-violet-300">
+                {{ mesa.reservaActiva.hora }} hs
+              </span>
+              <span class="block max-w-[90px] truncate text-[10px] font-medium text-stone-300">
+                {{ mesa.reservaActiva.nombre_cliente }}
               </span>
             </div>
             <span v-else class="text-[11px] font-medium text-stone-400">

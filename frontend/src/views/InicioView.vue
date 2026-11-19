@@ -1,13 +1,19 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import Combobox from '../components/Combobox.vue'
 import PlanoMesas from '../components/PlanoMesas.vue'
-import { authState, productosService, mesasService } from '@/services/api'
+import {
+  authState,
+  productosService,
+  mesasService,
+  reservasService,
+  obtenerFechaHoyLocal,
+} from '@/services/api'
 import {
   ArrowRight, Bell, Check, ChevronUp, CircleDollarSign, Clock3, Minus, Plus,
   ShoppingBag, X, Banknote, CreditCard, ArrowRightLeft, Search, Trash2,
-  RefreshCw, AlertCircle, UtensilsCrossed,
+  RefreshCw, AlertCircle, UtensilsCrossed, CalendarCheck, Lock, QrCode,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -128,6 +134,83 @@ async function cargarCatalogo() {
   }
 }
 
+const reservasHoy = ref([])
+const codigoReservaInput = ref('')
+const reservaCliente = ref(null)
+const codigoClienteInput = ref('')
+
+const puedePedirCliente = computed(() =>
+  Boolean(reservaCliente.value && reservaCliente.value.asistencia_confirmada === true),
+)
+
+function sincronizarReservaCliente() {
+  const queryCodigo = String(route.query.codigo || '').trim().toUpperCase()
+  if (queryCodigo && !permisoMesas.value) {
+    reservasService.guardarCodigoReservaCliente(queryCodigo)
+  }
+
+  const codigo = queryCodigo || reservasService.obtenerCodigoReservaCliente()
+  const encontrada = codigo ? reservasService.obtenerReservaPorCodigo(codigo) : null
+  reservaCliente.value = encontrada
+  if (encontrada?.mesa_numero) {
+    mesaCliente.value = Number(encontrada.mesa_numero)
+  }
+  cargarReservasHoy()
+}
+
+function vincularCodigoCliente() {
+  const codigo = codigoClienteInput.value.trim().toUpperCase()
+  if (!codigo) {
+    mostrarFeedback('Ingresá el código de tu reserva.', 'error')
+    return
+  }
+  const encontrada = reservasService.obtenerReservaPorCodigo(codigo)
+  if (!encontrada) {
+    mostrarFeedback(`No encontramos ninguna reserva activa con el código ${codigo}.`, 'error')
+    return
+  }
+  reservasService.guardarCodigoReservaCliente(codigo)
+  codigoClienteInput.value = ''
+  sincronizarReservaCliente()
+  mostrarFeedback(
+    encontrada.asistencia_confirmada
+      ? `¡Mesa ${encontrada.mesa_numero} habilitada! Ya podés hacer tu pedido.`
+      : `Reserva vinculada (Mesa ${encontrada.mesa_numero}). Esperando que el empleado escanee tu QR o confirme tu código.`,
+    encontrada.asistencia_confirmada ? 'exito' : 'info',
+  )
+}
+
+function cargarReservasHoy() {
+  reservasHoy.value = reservasService.obtenerReservasPorFecha(obtenerFechaHoyLocal())
+}
+
+const reservasMesaSeleccionada = computed(() =>
+  reservasHoy.value.filter((r) => Number(r.mesa_numero) === Number(selectedTable.value)),
+)
+
+function confirmarLlegadaReserva(codigoOverride = null, mesaNumero = null) {
+  const codigo = (codigoOverride ?? codigoReservaInput.value).trim().toUpperCase()
+  const res = reservasService.confirmarLlegadaPorCodigo(codigo, mesaNumero)
+  if (!res.success) {
+    mostrarFeedback(res.message, 'error')
+    return
+  }
+  codigoReservaInput.value = ''
+  cargarReservasHoy()
+  if (res.data?.mesa_numero) {
+    selectedTable.value = Number(res.data.mesa_numero)
+  }
+  mostrarFeedback(res.message, 'exito')
+}
+
+function cancelarReservaMesa(id) {
+  const res = reservasService.cancelarReserva(id)
+  if (res.success) {
+    cargarReservasHoy()
+    mostrarFeedback('Reserva cancelada y mesa liberada.', 'info')
+  }
+}
+
 async function cargarMesas() {
   cargandoMesas.value = true
   const res = await mesasService.listarMesas()
@@ -135,10 +218,27 @@ async function cargarMesas() {
   if (res.success && Array.isArray(res.data)) {
     mesas.value = res.data
   }
+  cargarReservasHoy()
 }
 
 onMounted(async () => {
   await Promise.all([cargarCatalogo(), cargarMesas()])
+  sincronizarReservaCliente()
+
+  // Si un empleado/admin escanea el QR de una reserva (?codigo=...), confirmar llegada automáticamente
+  const codigoQuery = String(route.query.codigo || '').trim().toUpperCase()
+  if (codigoQuery && permisoMesas.value) {
+    view.value = 'cajero'
+    confirmarLlegadaReserva(codigoQuery)
+  }
+
+  window.addEventListener('storage', sincronizarReservaCliente)
+  window.addEventListener('focus', sincronizarReservaCliente)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', sincronizarReservaCliente)
+  window.removeEventListener('focus', sincronizarReservaCliente)
 })
 
 watch(() => authState.organizacion?.id, async () => {
@@ -191,6 +291,16 @@ const buildItemKey = (productoId, opciones = []) => {
 }
 
 const abrirModalPersonalizar = (product) => {
+  if (permisoMesas.value) return
+  if (view.value === 'cliente' && !puedePedirCliente.value) {
+    mostrarFeedback(
+      reservaCliente.value
+        ? 'Tu reserva aún no fue validada en el local. Mostrá tu QR o código al empleado para habilitar pedidos.'
+        : 'Solo podés ver el catálogo. Para hacer un pedido primero debés realizar una reserva.',
+      'error',
+    )
+    return
+  }
   if (Number(product.stock ?? 0) <= 0) {
     mostrarFeedback(`"${product.nombre}" se encuentra sin stock en este momento.`, 'error')
     return
@@ -270,6 +380,15 @@ const removeCartItem = (key) => {
 }
 
 const sendOrder = async () => {
+  if (!puedePedirCliente.value) {
+    mostrarFeedback(
+      reservaCliente.value
+        ? 'Tu reserva aún no fue escaneada/confirmada en el local.'
+        : 'Debés tener una reserva confirmada y validada para enviar un pedido.',
+      'error',
+    )
+    return
+  }
   if (!cart.value.length || enviandoPedido.value) return
   enviandoPedido.value = true
   const res = await mesasService.enviarPedido({
@@ -437,29 +556,127 @@ const freeTable = async () => {
       <div class="absolute -top-[20%] left-1/2 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e58a4e]/15 via-[#e58a4e]/5 to-transparent blur-3xl"></div>
     </div>
 
-    <!-- CLIENTE VIEW (CARTA DIGITAL REAL) -->
+    <!-- CLIENTE / CATÁLOGO VIEW (CARTA DIGITAL REAL) -->
     <section
       v-if="view === 'cliente'"
-      class="relative mx-auto grid w-full min-w-0 max-w-[1400px] gap-6 px-4 pt-4 pb-6 sm:gap-8 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_380px] md:px-8">
-      <div class="mx-auto w-full min-w-0 max-w-[760px] lg:mx-0">
-        <!-- Title & Table selector -->
+      :class="permisoMesas ? 'max-w-[960px]' : 'max-w-[1400px] lg:grid-cols-[minmax(0,1fr)_380px]'"
+      class="relative mx-auto grid w-full min-w-0 gap-6 px-4 pt-4 pb-6 sm:gap-8 sm:px-6 sm:py-8 md:px-8">
+      <div :class="permisoMesas ? 'w-full min-w-0' : 'mx-auto w-full min-w-0 max-w-[760px] lg:mx-0'">
+        <!-- Title & Table selector (solo cliente) o acceso a edición (admin) -->
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
           <div class="min-w-0">
-            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e] sm:text-xs">Escanea y elegí</p>
+            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-[#e58a4e] sm:text-xs">
+              {{ permisoMesas ? (esAdmin ? 'Vista Administrador' : 'Vista de Equipo') : 'Escanea y elegí' }}
+            </p>
             <h1 class="mt-0.5 font-serif text-2xl font-bold tracking-tight text-white sm:mt-1 sm:text-4xl">
-              Trackea tu Menú
+              {{ permisoMesas ? 'Catálogo del Local' : 'Trackea tu Menú' }}
             </h1>
           </div>
 
-          <div class="w-36 shrink-0">
-            <Combobox
-              v-model="mesaCliente"
-              :options="mesaOptions"
-              size="sm"
-              placeholder="Mesa"
+          <template v-if="permisoMesas">
+            <RouterLink
+              v-if="esAdmin"
+              to="/productos"
+              class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-[#e58a4e]/40 bg-[#e58a4e]/10 px-4 py-2 text-xs font-bold text-[#e58a4e] transition hover:bg-[#e58a4e] hover:text-[#190d05]"
+            >
+              <span>Editar platos y precios</span>
+              <ArrowRight :size="14" />
+            </RouterLink>
+          </template>
+          <template v-else>
+            <div v-if="reservaCliente" class="shrink-0 rounded-xl border border-[#e58a4e]/40 bg-[#17120f] px-3.5 py-2 text-xs font-bold text-[#e58a4e]">
+              Mesa {{ reservaCliente.mesa_numero }}
+            </div>
+            <div v-else class="w-36 shrink-0">
+              <Combobox
+                v-model="mesaCliente"
+                :options="mesaOptions"
+                size="sm"
+                placeholder="Mesa"
+              />
+            </div>
+          </template>
+        </div>
+
+        <!-- Banner de habilitación de pedidos por reserva + QR (solo para clientes) -->
+        <template v-if="!permisoMesas">
+        <div
+          v-if="!reservaCliente"
+          class="mb-5 rounded-2xl border border-amber-500/35 bg-[#1b140e] p-4 text-xs space-y-3">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="flex items-start gap-2.5">
+              <Lock :size="16" class="mt-0.5 shrink-0 text-amber-400" />
+              <div>
+                <p class="font-bold text-amber-200">Catálogo en modo consulta</p>
+                <p class="mt-0.5 text-stone-300 leading-relaxed">
+                  Podés explorar toda nuestra carta, pero para realizar pedidos debés tener una reserva confirmada y validada al llegar al local.
+                </p>
+              </div>
+            </div>
+            <RouterLink
+              to="/"
+              class="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#e58a4e] px-3.5 py-2 text-xs font-extrabold text-[#190d05] transition hover:bg-[#ee975e]">
+              <CalendarCheck :size="14" />
+              <span>Hacer reserva</span>
+            </RouterLink>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 border-t border-white/5 pt-2.5">
+            <span class="text-[11px] text-stone-400">¿Ya tenés código de reserva?</span>
+            <input
+              v-model="codigoClienteInput"
+              type="text"
+              maxlength="12"
+              placeholder="Ej. 8K4M2P9X"
+              @keydown.enter.prevent="vincularCodigoCliente"
+              class="w-36 rounded-lg border border-stone-700 bg-[#110d0b] px-2.5 py-1 font-mono text-[11px] uppercase text-white placeholder-stone-500 outline-none focus:border-[#e58a4e]"
             />
+            <button
+              type="button"
+              @click="vincularCodigoCliente"
+              class="rounded-lg border border-stone-700 bg-[#221a15] px-2.5 py-1 text-[11px] font-bold text-stone-200 transition hover:border-[#e58a4e] hover:text-white">
+              Vincular código
+            </button>
           </div>
         </div>
+
+        <div
+          v-else-if="!puedePedirCliente"
+          class="mb-5 rounded-2xl border border-violet-500/40 bg-[#1a132b] p-4 text-xs">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-start gap-2.5">
+              <QrCode :size="17" class="mt-0.5 shrink-0 text-violet-300" />
+              <div>
+                <p class="font-bold text-violet-200">
+                  Reserva pendiente de validación · Mesa {{ reservaCliente.mesa_numero }} ({{ reservaCliente.hora }} hs)
+                </p>
+                <p class="mt-0.5 text-stone-300 leading-relaxed">
+                  Código: <b class="font-mono text-[#e58a4e]">{{ reservaCliente.codigo_confirmacion }}</b> · Mostrá tu QR o código al empleado cuando llegues al local para habilitar los pedidos.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              @click="sincronizarReservaCliente"
+              class="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-violet-400/40 bg-violet-950/50 px-3 py-1.5 text-[11px] font-bold text-violet-200 transition hover:bg-violet-800/50">
+              <RefreshCw :size="12" />
+              <span>Verificar QR</span>
+            </button>
+          </div>
+        </div>
+
+        <div
+          v-else
+          class="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-emerald-500/35 bg-emerald-950/25 px-4 py-2.5 text-xs text-emerald-200">
+          <div class="flex items-center gap-2">
+            <Check :size="15" class="text-emerald-400" />
+            <span>
+              <b>¡Pedidos habilitados!</b> Llegada confirmada para Mesa {{ reservaCliente.mesa_numero }} ({{ reservaCliente.nombre_cliente }}).
+            </span>
+          </div>
+          <span class="font-mono text-[11px] font-bold text-emerald-400">{{ reservaCliente.codigo_confirmacion }}</span>
+        </div>
+        </template>
 
         <!-- Buscador y filtro de disponibilidad -->
         <div class="mb-5 flex flex-col gap-2.5 sm:mb-6 sm:flex-row sm:items-center">
@@ -544,13 +761,26 @@ const freeTable = async () => {
 
               <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
                 <button
+                  v-if="!permisoMesas"
                   type="button"
-                  :disabled="stockRestanteParaProducto(product) <= 0"
+                  :disabled="!puedePedirCliente || stockRestanteParaProducto(product) <= 0"
                   @click.stop="abrirModalPersonalizar(product)"
                   class="inline-flex min-h-[38px] items-center gap-1.5 rounded-full border border-white/10 bg-[#221a15] px-4 py-1.5 text-xs font-bold text-stone-200 transition hover:border-white/20 hover:bg-[#2e231d] hover:text-white disabled:cursor-not-allowed disabled:opacity-45">
-                  <Plus :size="14" class="text-[#e58a4e]" />
-                  <span>{{ Number(product.stock ?? 0) <= 0 ? 'Sin stock' : 'Agregar' }}</span>
+                  <Lock v-if="!puedePedirCliente" :size="13" class="text-stone-400" />
+                  <Plus v-else :size="14" class="text-[#e58a4e]" />
+                  <span>
+                    {{
+                      !puedePedirCliente
+                        ? (reservaCliente ? 'Esperando QR' : 'Requiere reserva')
+                        : Number(product.stock ?? 0) <= 0
+                          ? 'Sin stock'
+                          : 'Agregar'
+                    }}
+                  </span>
                 </button>
+                <span v-else class="text-[11px] font-medium text-stone-500">
+                  {{ product.categoria || 'Plato activo en carta' }}
+                </span>
 
                 <div class="flex items-center gap-2">
                   <span
@@ -574,15 +804,17 @@ const freeTable = async () => {
         </div>
       </div>
 
-      <!-- Mobile Bottom Sheet Backdrop -->
+      <!-- Mobile Bottom Sheet Backdrop (solo cliente) -->
       <div
+        v-if="!permisoMesas"
         v-show="mobileCartOpen"
         class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm lg:hidden"
         @click="mobileCartOpen = false"
       />
 
-      <!-- Right Aside (Desktop Sticky) / Bottom Sheet (Mobile) -->
+      <!-- Right Aside (Desktop Sticky) / Bottom Sheet (Mobile) - solo cliente -->
       <aside
+        v-if="!permisoMesas"
         :class="mobileCartOpen
           ? 'fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t border-x border-white/10 bg-[#17120f] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl lg:static lg:z-auto lg:block lg:max-h-none lg:overflow-visible lg:rounded-3xl lg:border lg:border-white/5 lg:p-6 lg:sticky lg:top-24'
           : 'hidden lg:block h-fit min-w-0 max-w-full overflow-hidden rounded-3xl border border-white/5 bg-[#17120f] p-6 shadow-2xl lg:sticky lg:top-24'">
@@ -742,6 +974,7 @@ const freeTable = async () => {
           :mesas="mesas"
           :selected-table="selectedTable"
           :es-admin="esAdmin"
+          :reservas="reservasHoy"
           :format-price="formatPrice"
           :class="editandoMapa ? 'lg:col-span-2' : ''"
           @seleccionar-mesa="seleccionarMesa"
@@ -759,9 +992,70 @@ const freeTable = async () => {
             </div>
             <span
               class="rounded-full px-3 py-1 text-xs font-bold"
-              :class="tableOccupied ? 'border border-[#a2512f]/40 bg-[#3a1e14] text-[#f09559]' : 'border border-[#204933] bg-[#163223] text-[#4ade80]'">
-              {{ tableOccupied ? 'Ocupada' : 'Libre' }}
+              :class="tableOccupied
+                ? 'border border-[#a2512f]/40 bg-[#3a1e14] text-[#f09559]'
+                : reservasMesaSeleccionada.length > 0
+                  ? 'border border-violet-400/50 bg-[#22193a] text-violet-300'
+                  : 'border border-[#204933] bg-[#163223] text-[#4ade80]'">
+              {{ tableOccupied ? 'Ocupada' : reservasMesaSeleccionada.length > 0 ? 'Reservada' : 'Libre' }}
             </span>
+          </div>
+
+          <!-- Reservas programadas para esta mesa hoy -->
+          <div
+            v-if="reservasMesaSeleccionada.length > 0"
+            class="space-y-2.5 rounded-2xl border border-violet-500/35 bg-[#1b142d] p-3.5 text-xs">
+            <div class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-300">
+              <CalendarCheck :size="14" />
+              <span>{{ reservasMesaSeleccionada.length === 1 ? 'Reserva de hoy' : 'Reservas de hoy' }}</span>
+            </div>
+            <div
+              v-for="res in reservasMesaSeleccionada"
+              :key="res.id"
+              class="space-y-2 rounded-xl border border-white/5 bg-[#120d1f] px-3 py-2.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="font-bold text-white truncate">
+                    {{ res.hora }} hs · {{ res.nombre_cliente }}
+                  </p>
+                  <p class="text-[11px] text-stone-400">
+                    {{ res.personas }} {{ res.personas === 1 ? 'persona' : 'personas' }}<span v-if="res.telefono"> · {{ res.telefono }}</span>
+                  </p>
+                  <p v-if="res.sena_pagada" class="mt-0.5 text-[10px] font-semibold text-emerald-400">
+                    Seña MP abonada: {{ formatPrice(res.sena_monto) }}<span v-if="res.sena_comprobante" class="text-stone-400"> · Ref: {{ res.sena_comprobante }}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  @click="cancelarReservaMesa(res.id)"
+                  title="Cancelar reserva"
+                  class="shrink-0 rounded-lg border border-rose-900/50 bg-rose-950/40 px-2 py-1 text-[10px] font-semibold text-rose-300 transition hover:bg-rose-900/70">
+                  Cancelar
+                </button>
+              </div>
+
+              <!-- Confirmación de llegada con código alfanumérico -->
+              <div v-if="res.asistencia_confirmada" class="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1.5 text-[11px] font-bold text-emerald-300">
+                <Check :size="13" />
+                <span>Llegada confirmada · Código {{ res.codigo_confirmacion }}</span>
+              </div>
+              <div v-else class="flex items-center gap-1.5 pt-1 border-t border-white/5">
+                <input
+                  v-model="codigoReservaInput"
+                  type="text"
+                  maxlength="12"
+                  placeholder="Código del cliente (ej. 8K4M2P9X)"
+                  @keydown.enter.prevent="confirmarLlegadaReserva(null, selectedTable)"
+                  class="min-w-0 flex-1 rounded-lg border border-violet-500/30 bg-[#0d0917] px-2.5 py-1.5 font-mono text-[11px] uppercase text-white placeholder-stone-500 outline-none focus:border-violet-400"
+                />
+                <button
+                  type="button"
+                  @click="confirmarLlegadaReserva(null, selectedTable)"
+                  class="shrink-0 rounded-lg bg-violet-500 px-2.5 py-1.5 text-[11px] font-bold text-white transition hover:bg-violet-400">
+                  Confirmar llegada
+                </button>
+              </div>
+            </div>
           </div>
 
           <template v-if="tableOccupied && comandaActual">
