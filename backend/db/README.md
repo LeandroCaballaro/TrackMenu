@@ -20,7 +20,8 @@ backend/db/
 │   ├── 009_ventas_lectura_empleado.sql     # Deja que el empleado cobre (lectura de ventas)
 │   ├── 010_comandas_por_mesa.sql           # Comandas abiertas por mesa, compartidas por el equipo
 │   ├── 011_carta_publica.sql               # Carta del QR, visible sin sesión
-│   └── 012_roles_unificados.sql            # Un solo CHECK de roles y permisos de organizaciones
+│   ├── 012_roles_unificados.sql            # Un solo CHECK de roles y permisos de organizaciones
+│   └── 013_reservas_y_mapa.sql             # Reservas con seña y plano del salón
 │
 ├── seeds/
 │   ├── 001_seed_products.sql              # Inserción de productos iniciales
@@ -41,7 +42,7 @@ backend/db/
 
 1. Ingresá a tu proyecto en [Supabase Dashboard](https://supabase.com/dashboard).
 2. Ve a la sección **SQL Editor**.
-3. Ejecutá en orden los archivos de `migrations/` (`001` a `012`).
+3. Ejecutá en orden los archivos de `migrations/` (`001` a `013`).
 4. Ejecutá los archivos de `seeds/` (`001` a `005`) si deseas cargar los datos de prueba.
    Los seeds `004` y `005` crean las cuentas de demostración y su menú, y hay
    que correrlos desde el SQL Editor: escriben en `auth.users`, que la clave

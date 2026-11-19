@@ -10,6 +10,8 @@ import superadminRoutes from './superadmin.routes.js';
 import ventasRoutes from './ventas.routes.js';
 import comandasRoutes from './comandas.routes.js';
 import publicoRoutes from './publico.routes.js';
+import reservasRoutes from './reservas.routes.js';
+import mapaRoutes from './mapa.routes.js';
 
 const apiRouter = Router();
 
@@ -29,5 +31,7 @@ apiRouter.use('/superadmin', superadminRoutes);
 apiRouter.use('/ventas', ventasRoutes);
 apiRouter.use('/comandas', comandasRoutes);
 apiRouter.use('/publico', publicoRoutes);
+apiRouter.use('/reservas', reservasRoutes);
+apiRouter.use('/mapa', mapaRoutes);
 
 export default apiRouter;

@@ -14,7 +14,8 @@
     "test:e2e:admin": "node tests/e2e.admin.mjs",
     "test:e2e:ventas": "node tests/e2e.ventas.mjs",
     "test:e2e:comandas": "node tests/e2e.comandas.mjs",
-    "test:e2e:publico": "node tests/e2e.publico.mjs"
+    "test:e2e:publico": "node tests/e2e.publico.mjs",
+    "test:e2e:reservas": "node tests/e2e.reservas.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

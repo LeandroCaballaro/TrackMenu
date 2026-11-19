@@ -44,3 +44,46 @@ export const cartaPublica = async (req, res, next) => {
     next(err);
   }
 };
+
+// El cliente consulta su reserva con el código que le dieron, sin sesión.
+// reserva_por_codigo() devuelve sólo lo que necesita ver quien ya tiene el
+// código: ni el teléfono, ni las notas internas, ni el comprobante de la seña.
+export const reservaPorCodigo = async (req, res, next) => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({ success: false, message: 'Supabase no está configurado en backend/.env' });
+    }
+
+    const codigo = String(req.params.codigo || '').trim();
+    if (!/^[A-Za-z0-9]{4,16}$/.test(codigo)) {
+      return res.status(404).json({ success: false, message: 'Reserva no encontrada' });
+    }
+
+    const { data, error } = await supabase.rpc('reserva_por_codigo', { codigo });
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ success: false, message: 'No encontramos ninguna reserva con ese código' });
+    }
+
+    const r = data[0];
+    res.json({
+      success: true,
+      data: {
+        organizacion: r.organizacion_nombre,
+        codigo_confirmacion: r.codigo_confirmacion,
+        fecha: r.fecha,
+        hora: r.hora,
+        personas: r.personas,
+        mesa_numero: r.mesa_numero,
+        nombre_cliente: r.nombre_cliente,
+        sena_monto: Number(r.sena_monto),
+        sena_pagada: r.sena_pagada,
+        asistencia_confirmada: r.asistencia_confirmada,
+        estado: r.estado,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};

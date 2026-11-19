@@ -43,6 +43,10 @@ cd backend && npm run test:e2e:comandas
 cd backend && npm run test:e2e:publico
 ```
 
+```bash
+cd backend && npm run test:e2e:reservas
+```
+
 Los dos últimos necesitan el backend levantado (`npm run dev`) y las variables
 de entorno que indica `FUNCION-PRINCIPAL.md`.
 
@@ -200,3 +204,20 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | K4 🤖 | Abrir con un id inválido o inexistente | `404` con un mensaje claro |
 | K5 🤖 | Pedir `/productos`, `/comandas`, `/miembros` o `/admin/ventas` sin sesión | Siguen en `401` |
 | K6 | Copiar el enlace desde la pantalla de productos | Es el que va en el QR de las mesas |
+
+
+## L. Reservas y plano del salón
+
+| # | Pasos | Resultado esperado |
+|---|---|---|
+| L1 🤖 | Tomar una reserva sin seña paga | `400`: la mesa no se bloquea sin la seña |
+| L2 🤖 | Reservar para una fecha pasada, u hora inexistente | `400` con el campo señalado |
+| L3 🤖 | Reservar para más personas que la capacidad de la mesa | `409` diciendo cuántas entran |
+| L4 🤖 | Reservar la misma mesa, día y hora dos veces | `409`: no hay doble turno |
+| L5 🤖 | Confirmar una reserva | Queda con su código y la seña calculada por persona |
+| L6 🤖 | Consultar `/api/publico/reserva/<código>` sin sesión | Se ve la reserva, sin teléfono ni notas internas |
+| L7 🤖 | Confirmar la asistencia; confirmarla otra vez | `200` y después `404` |
+| L8 🤖 | Tomar reservas como `consulta` | `403`; pero sí ve la agenda |
+| L9 🤖 | Guardar el plano como empleado / como admin | `403` y `200` |
+| L10 🤖 | Guardar un plano sin mesas o con números repetidos | `400` |
+| L11 🤖 | Leer el plano desde otra organización | Tiene el suyo, no este |
