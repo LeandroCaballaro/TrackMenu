@@ -335,36 +335,36 @@ onBeforeUnmount(() => {
       <div
         v-if="isOpen"
         ref="dropdownRef"
-        class="absolute left-0 z-50 w-72 sm:w-80 rounded-3xl border border-stone-800 bg-[#17120f] p-4 text-white shadow-2xl backdrop-blur-md"
-        :class="placement === 'top' ? 'bottom-full mb-2 origin-bottom' : 'top-full mt-2 origin-top'"
+        class="absolute left-0 z-50 w-60 sm:w-64 rounded-2xl border border-stone-800 bg-[#17120f] p-3 text-white shadow-2xl backdrop-blur-md"
+        :class="placement === 'top' ? 'bottom-full mb-1.5 origin-bottom' : 'top-full mt-1.5 origin-top'"
         role="dialog"
         aria-modal="true"
         aria-label="Selector de fecha"
       >
         <!-- Encabezado del calendario: navegación de mes y año -->
-        <div class="flex items-center justify-between border-b border-stone-800/80 pb-3 mb-3">
+        <div class="flex items-center justify-between border-b border-stone-800/80 pb-2 mb-2">
           <div class="flex items-center gap-0.5">
             <button
               type="button"
               @click="anoAnterior"
-              class="rounded-xl p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
+              class="rounded-lg p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
               title="Año anterior"
               aria-label="Año anterior"
             >
-              <ChevronsLeft :size="15" />
+              <ChevronsLeft :size="13" />
             </button>
             <button
               type="button"
               @click="mesAnterior"
-              class="rounded-xl p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
+              class="rounded-lg p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
               title="Mes anterior"
               aria-label="Mes anterior"
             >
-              <ChevronLeft :size="15" />
+              <ChevronLeft :size="13" />
             </button>
           </div>
 
-          <span class="font-girassol text-base sm:text-lg capitalize text-white tracking-wide">
+          <span class="font-girassol text-sm sm:text-base capitalize text-white tracking-wide">
             {{ tituloMesAno }}
           </span>
 
@@ -372,39 +372,39 @@ onBeforeUnmount(() => {
             <button
               type="button"
               @click="mesSiguiente"
-              class="rounded-xl p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
+              class="rounded-lg p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
               title="Mes siguiente"
               aria-label="Mes siguiente"
             >
-              <ChevronRight :size="15" />
+              <ChevronRight :size="13" />
             </button>
             <button
               type="button"
               @click="anoSiguiente"
-              class="rounded-xl p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
+              class="rounded-lg p-1 text-stone-400 hover:bg-[#201814] hover:text-white transition"
               title="Año siguiente"
               aria-label="Año siguiente"
             >
-              <ChevronsRight :size="15" />
+              <ChevronsRight :size="13" />
             </button>
           </div>
         </div>
 
         <!-- Días de la semana -->
-        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-stone-400 mb-1">
-          <span v-for="d in DIAS_SEMANA" :key="d" class="py-1">
+        <div class="grid grid-cols-7 gap-0.5 text-center text-[9px] font-bold text-stone-400 mb-1">
+          <span v-for="d in DIAS_SEMANA" :key="d" class="py-0.5">
             {{ d }}
           </span>
         </div>
 
         <!-- Cuadrícula de días -->
-        <div class="grid grid-cols-7 gap-1">
+        <div class="grid grid-cols-7 gap-0.5">
           <button
             v-for="(celda, idx) in diasCalendario"
             :key="idx"
             type="button"
             @click="seleccionarDia(celda)"
-            class="relative flex h-8 w-8 sm:h-9 sm:w-9 mx-auto items-center justify-center rounded-xl text-xs font-semibold transition duration-150"
+            class="relative flex h-7 w-7 mx-auto items-center justify-center rounded-lg text-[11px] font-semibold transition duration-150"
             :class="[
               celda.esSeleccionado
                 ? 'bg-[#e58a4e] text-[#190d05] font-bold shadow-md scale-105'
@@ -418,13 +418,13 @@ onBeforeUnmount(() => {
             <span>{{ celda.dia }}</span>
             <span
               v-if="celda.esHoy && !celda.esSeleccionado"
-              class="absolute bottom-1 h-1 w-1 rounded-full bg-[#e58a4e]"
+              class="absolute bottom-0.5 h-1 w-1 rounded-full bg-[#e58a4e]"
             />
           </button>
         </div>
 
         <!-- Barra inferior: Borrar / Hoy -->
-        <div class="flex items-center justify-between border-t border-stone-800/80 pt-3 mt-3 text-xs">
+        <div class="flex items-center justify-between border-t border-stone-800/80 pt-2 mt-2 text-[11px]">
           <button
             type="button"
             @click="borrarFecha"
