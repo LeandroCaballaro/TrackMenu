@@ -153,9 +153,9 @@ function formatearFechaCorta(fechaStr) {
   return `${d}/${m}/${y}`
 }
 
-function confirmarReserva() {
+async function confirmarReserva() {
   errorFormulario.value = ''
-  const res = reservasService.crearReserva({
+  const res = await reservasService.crearReserva({
     fecha: formReserva.value.fecha,
     hora: formReserva.value.hora,
     personas: formReserva.value.personas,

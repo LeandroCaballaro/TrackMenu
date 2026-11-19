@@ -11,8 +11,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-// Mismo criterio que usa la pantalla: la seña crece con la cantidad de gente.
-const montoSena = (personas) => personas * 2000;
+// El mismo valor que muestra la pantalla al cobrar (SENA_POR_PERSONA en el
+// frontend): con dos cifras distintas, al cliente se le cobraba una y se le
+// registraba otra.
+const SENA_POR_PERSONA = 2500;
+const montoSena = (personas) => personas * SENA_POR_PERSONA;
 
 const codigoConfirmacion = () => randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
 

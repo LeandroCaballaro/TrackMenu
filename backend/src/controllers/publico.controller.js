@@ -3,6 +3,7 @@
 // productos sigue cerrada para quien no pertenece a la organización.
 
 import { supabase, isSupabaseConfigured } from '../config/supabase.js';
+import { validarReserva } from './reservas.controller.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -81,6 +82,74 @@ export const reservaPorCodigo = async (req, res, next) => {
         sena_pagada: r.sena_pagada,
         asistencia_confirmada: r.asistencia_confirmada,
         estado: r.estado,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// El cliente reserva desde la portada, sin sesión. Antes esa reserva no salía
+// del navegador: la pantalla confirmaba y el local no se enteraba.
+export const reservarPublico = async (req, res, next) => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({ success: false, message: 'Supabase no está configurado en backend/.env' });
+    }
+
+    const { organizacionId } = req.params;
+    if (!UUID.test(organizacionId)) {
+      return res.status(404).json({ success: false, message: 'El local no existe' });
+    }
+
+    const { valido, errores, datos } = validarReserva(req.body);
+    if (!valido) {
+      return res.status(400).json({ success: false, message: 'Hay datos inválidos o incompletos', errors: errores });
+    }
+
+    if (datos.personas > datos.mesa_capacidad) {
+      return res.status(409).json({
+        success: false,
+        message: `La mesa ${datos.mesa_numero} es para ${datos.mesa_capacidad} personas y la reserva es para ${datos.personas}`,
+      });
+    }
+
+    const { data, error } = await supabase.rpc('crear_reserva_publica', {
+      organizacion: organizacionId,
+      p_fecha: datos.fecha,
+      p_hora: datos.hora,
+      p_personas: datos.personas,
+      p_mesa_numero: datos.mesa_numero,
+      p_mesa_capacidad: datos.mesa_capacidad,
+      p_nombre_cliente: datos.nombre_cliente,
+      p_telefono: datos.telefono,
+      p_notas: datos.notas,
+      p_sena_monto: datos.sena_monto,
+      p_sena_comprobante: datos.sena_comprobante,
+    });
+
+    // El índice único de mesa + fecha + hora es lo que corta el doble turno.
+    if (error?.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        message: `Esa mesa ya está reservada ese día a las ${datos.hora}`,
+      });
+    }
+    if (error) {
+      return res.status(400).json({ success: false, message: error.message.replace(/^.*?:s*/, '') });
+    }
+
+    const r = data[0];
+    res.status(201).json({
+      success: true,
+      message: 'Reserva confirmada correctamente',
+      data: {
+        codigo_confirmacion: r.codigo_confirmacion,
+        mesa_numero: r.mesa_numero,
+        sena_monto: Number(r.sena_monto),
+        fecha: datos.fecha,
+        hora: datos.hora,
+        personas: datos.personas,
       },
     });
   } catch (err) {

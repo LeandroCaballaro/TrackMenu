@@ -22,7 +22,8 @@ backend/db/
 │   ├── 011_carta_publica.sql               # Carta del QR, visible sin sesión
 │   ├── 012_roles_unificados.sql            # Un solo CHECK de roles y permisos de organizaciones
 │   ├── 013_reservas_y_mapa.sql             # Reservas con seña y plano del salón
-│   └── 014_superadmin_opera_como_admin.sql # El superadmin cumple las reglas de admin en RLS
+│   ├── 014_superadmin_opera_como_admin.sql # El superadmin cumple las reglas de admin en RLS
+│   └── 015_reserva_publica.sql             # El cliente reserva desde el QR, sin sesión
 │
 ├── seeds/
 │   ├── 001_seed_products.sql              # Inserción de productos iniciales
@@ -43,7 +44,7 @@ backend/db/
 
 1. Ingresá a tu proyecto en [Supabase Dashboard](https://supabase.com/dashboard).
 2. Ve a la sección **SQL Editor**.
-3. Ejecutá en orden los archivos de `migrations/` (`001` a `014`).
+3. Ejecutá en orden los archivos de `migrations/` (`001` a `015`).
 4. Ejecutá los archivos de `seeds/` (`001` a `005`) si deseas cargar los datos de prueba.
    Los seeds `004` y `005` crean las cuentas de demostración y su menú, y hay
    que correrlos desde el SQL Editor: escriben en `auth.users`, que la clave

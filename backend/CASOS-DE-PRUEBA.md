@@ -221,3 +221,7 @@ de entorno que indica `FUNCION-PRINCIPAL.md`.
 | L9 🤖 | Guardar el plano como empleado / como admin | `403` y `200` |
 | L10 🤖 | Guardar un plano sin mesas o con números repetidos | `400` |
 | L11 🤖 | Leer el plano desde otra organización | Tiene el suyo, no este |
+| L12 🤖 | Reservar desde `/?negocio=<id>` sin sesión | `201`: la reserva llega a la base y el local la ve |
+| L13 🤖 | Reservar sin seña, con fecha pasada o en un local que no existe, sin sesión | `400` en los tres |
+| L14 | Dibujar el plano con el editor y Guardar cambios | "¡Mapa guardado!" y queda en la base |
+| L15 | Completar la reserva en la portada | La seña que se muestra es la que queda registrada |

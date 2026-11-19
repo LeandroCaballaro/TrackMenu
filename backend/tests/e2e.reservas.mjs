@@ -75,7 +75,7 @@ const main = async () => {
   // --- Reserva real
   const creada = await api('POST', '/reservas', { token: empleado, body: reserva });
   ok(creada.status === 201 && creada.json.data.codigo_confirmacion, `reserva confirmada: ${creada.json.message}`);
-  ok(Number(creada.json.data.sena_monto) === reserva.personas * 2000,
+  ok(Number(creada.json.data.sena_monto) === reserva.personas * 2500,
     `la seña se calcula por persona ($${creada.json.data.sena_monto})`);
   const { id, codigo_confirmacion: codigo } = creada.json.data;
 
@@ -106,6 +106,36 @@ const main = async () => {
   const reusa = await api('POST', '/reservas', { token: empleado, body: { ...reserva, nombre_cliente: 'Segundo turno' } });
   ok(reusa.status === 201, 'cerrada la anterior, la mesa se puede volver a reservar');
   await api('DELETE', `/reservas/${reusa.json.data.id}`, { token: empleado });
+
+  // --- El cliente reserva desde el QR, sin sesión
+  const orgId = (await api('GET', '/auth/me', { token: admin })).json.data.organizacion_id;
+  const delCliente = { ...reserva, hora: '22:45', mesa_numero: MESA + 1, nombre_cliente: 'Cliente sin sesion' };
+
+  ok((await api('POST', `/publico/reservas/abc`, { body: delCliente })).status === 404,
+    'un local que no es un id válido: 404');
+  ok((await api('POST', `/publico/reservas/${crypto.randomUUID()}`, { body: delCliente })).status === 400,
+    'un local que no existe: no se puede reservar');
+  ok((await api('POST', `/publico/reservas/${orgId}`, { body: { ...delCliente, sena_pagada: false } })).status === 400,
+    'el cliente tampoco reserva sin la seña');
+  ok((await api('POST', `/publico/reservas/${orgId}`, { body: { ...delCliente, fecha: '2020-01-01' } })).status === 400,
+    'ni para una fecha que ya pasó');
+
+  const sinSesion = await api('POST', `/publico/reservas/${orgId}`, { body: delCliente });
+  ok(sinSesion.status === 201 && sinSesion.json.data.codigo_confirmacion,
+    `el cliente reserva sin sesión: ${sinSesion.json.data?.codigo_confirmacion}`);
+  ok(Number(sinSesion.json.data.sena_monto) === delCliente.personas * 2500,
+    'la seña es la misma que muestra la pantalla');
+
+  const suya = await api('GET', `/publico/reserva/${sinSesion.json.data.codigo_confirmacion}`);
+  ok(suya.status === 200, 'y la encuentra después con su código');
+  ok((await api('POST', `/publico/reservas/${orgId}`, { body: delCliente })).status === 409,
+    'esa mesa y ese turno ya no se pueden volver a reservar');
+
+  ok((await api('GET', '/reservas', { token: empleado })).json.data.some((r) => r.nombre_cliente === 'Cliente sin sesion'),
+    'el local ve la reserva que tomó el cliente');
+
+  const paraCerrar = (await api('GET', '/reservas', { token: empleado })).json.data.find((r) => r.nombre_cliente === 'Cliente sin sesion');
+  await api('DELETE', `/reservas/${paraCerrar.id}`, { token: empleado });
 
   // --- Plano del salón
   const plano = {
