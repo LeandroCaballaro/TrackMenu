@@ -818,7 +818,9 @@ export const productosService = {
         if (res.ok && json.success) {
           return { success: true, message: json.message || 'Producto eliminado correctamente' }
         }
-        return { success: false, message: json.message }
+        // El code viaja para que la vista distinga "no se puede borrar porque
+        // tiene ventas" de un error cualquiera y ofrezca desactivarlo.
+        return { success: false, message: json.message, code: json.code }
       } catch {
         // Fallback
       }
@@ -830,6 +832,17 @@ export const productosService = {
 
     if (index === -1) {
       return { success: false, message: 'Producto no encontrado o pertenece a otra organización.' }
+    }
+
+    // Mismo criterio que la base: un producto con ventas registradas no se borra.
+    const tieneVentas = (db.detalle_ventas || []).some((det) => det.producto_id === id)
+    if (tieneVentas) {
+      return {
+        success: false,
+        code: 'PRODUCTO_CON_HISTORIAL',
+        message:
+          'No se puede eliminar el producto porque figura en ventas ya registradas. Podés desactivarlo para que deje de aparecer en la carta sin perder el historial.',
+      }
     }
 
     db.productos.splice(index, 1)

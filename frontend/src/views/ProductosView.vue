@@ -76,6 +76,10 @@ const copiarEnlaceCarta = async () => {
 const modalEliminarAbierto = ref(false)
 const productoAEliminar = ref(null)
 
+// Un producto con ventas registradas no se puede borrar sin romper el historial:
+// en ese caso ofrecemos desactivarlo en lugar de mostrar el error y nada más.
+const modalDesactivarAbierto = ref(false)
+
 // Formateo de precio
 const formatearPrecio = (valor) => `$ ${Number(valor || 0).toLocaleString('es-AR')}`
 
@@ -191,9 +195,38 @@ async function ejecutarEliminar() {
     mostrarNotificacion(res.message, 'exito')
     productoAEliminar.value = null
     await cargarListado()
+    return
+  }
+
+  // El producto ya se vendió: en vez del error a secas, ofrecemos desactivarlo.
+  if (res.code === 'PRODUCTO_CON_HISTORIAL') {
+    modalDesactivarAbierto.value = true
+    return
+  }
+
+  mostrarNotificacion(res.message, 'error')
+  productoAEliminar.value = null
+}
+
+async function ejecutarDesactivar() {
+  if (!productoAEliminar.value) return
+  const { id, nombre } = productoAEliminar.value
+  modalDesactivarAbierto.value = false
+
+  const res = await productosService.actualizar(id, { activo: false })
+  if (res.success) {
+    mostrarNotificacion(`"${nombre}" quedó desactivado y no se muestra en la carta.`, 'exito')
+    await cargarListado()
   } else {
     mostrarNotificacion(res.message, 'error')
   }
+
+  productoAEliminar.value = null
+}
+
+function cancelarDesactivar() {
+  modalDesactivarAbierto.value = false
+  productoAEliminar.value = null
 }
 
 // Subida de imagen desde dispositivo
@@ -848,6 +881,40 @@ onMounted(() => {
           <button type="button" @click="ejecutarEliminar"
             class="rounded-xl border border-rose-900/60 bg-rose-900/40 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-900/60 transition">
             Sí, eliminar registro
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- El producto ya se vendió: la base protege el historial, ofrecemos la baja lógica -->
+    <div v-if="modalDesactivarAbierto"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+      @click.self="cancelarDesactivar">
+      <div class="w-full max-w-md rounded-3xl border border-amber-900/60 bg-[#17120f] p-6 text-white shadow-2xl">
+        <div class="flex items-center gap-3">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-amber-900/50 bg-amber-950/30 text-amber-300">
+            <AlertCircle :size="18" />
+          </div>
+          <div>
+            <h3 class="font-serif text-xl font-bold text-white">Este producto ya se vendió</h3>
+            <p class="text-xs text-stone-400">No se puede borrar sin perder el historial.</p>
+          </div>
+        </div>
+
+        <p class="mt-4 text-xs leading-relaxed text-stone-300">
+          <strong class="text-white">"{{ productoAEliminar?.nombre }}"</strong>
+          figura en ventas ya registradas, así que borrarlo dejaría esas ventas sin detalle.
+          Podés desactivarlo: deja de aparecer en la carta y el historial queda intacto.
+        </p>
+
+        <div class="mt-6 flex items-center justify-end gap-2.5 border-t border-stone-800/80 pt-4">
+          <button type="button" @click="cancelarDesactivar"
+            class="rounded-xl border border-stone-800 bg-[#110d0b] px-4 py-2.5 text-xs font-semibold text-stone-300 hover:text-white transition">
+            Cancelar
+          </button>
+          <button type="button" @click="ejecutarDesactivar"
+            class="rounded-xl border border-amber-900/60 bg-amber-900/40 px-4 py-2.5 text-xs font-bold text-amber-200 hover:bg-amber-900/60 transition">
+            Desactivar producto
           </button>
         </div>
       </div>

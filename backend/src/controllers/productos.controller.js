@@ -5,6 +5,11 @@
 const CAMPOS_ORDEN = ['nombre', 'precio', 'stock', 'creado_en'];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Postgres: violación de clave foránea. detalle_ventas.producto_id referencia
+// productos(id) sin ON DELETE, así que la base frena el borrado de un producto
+// que ya se vendió para no romper el historial de ventas.
+const CLAVE_FORANEA = '23503';
+
 // Topes de las columnas: numeric(12,2) e integer. Pasarse hacía fallar el
 // INSERT con un 500 de Postgres en vez de un 400.
 const PRECIO_MAX = 9999999999.99;
@@ -259,7 +264,21 @@ export const eliminarProducto = async (req, res, next) => {
       .select()
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      // Borrarlo implicaría borrar renglones de ventas ya cerradas. En vez del
+      // 500 con el texto crudo de Postgres, devolvemos un 409 con un código que
+      // el front usa para ofrecer la baja lógica (activo = false).
+      if (error.code === CLAVE_FORANEA) {
+        return res.status(409).json({
+          success: false,
+          code: 'PRODUCTO_CON_HISTORIAL',
+          message:
+            'No se puede eliminar el producto porque figura en ventas ya registradas. Podés desactivarlo para que deje de aparecer en la carta sin perder el historial.',
+        });
+      }
+      throw error;
+    }
+
     if (!data) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     res.json({ success: true, message: 'Producto eliminado correctamente', data });
   } catch (err) {

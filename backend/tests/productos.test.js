@@ -1,7 +1,7 @@
 // node --test tests/
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validarProducto } from '../src/controllers/productos.controller.js';
+import { validarProducto, eliminarProducto } from '../src/controllers/productos.controller.js';
 
 test('rechaza alta sin campos obligatorios', () => {
   const r = validarProducto({});
@@ -71,4 +71,78 @@ test('acepta imágenes http(s) y data URLs cargadas desde dispositivo', () => {
   const rData = validarProducto({ nombre: 'Burger', precio: 120, imagen_url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==' });
   assert.equal(rData.valido, true);
   assert.equal(rData.datos.imagen_url, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==');
+});
+
+// --- Baja: el producto vendido no se borra, se desactiva ---
+
+const ID = '11111111-1111-1111-1111-111111111111';
+
+// Imita la cadena .from().delete().eq().eq().select().maybeSingle() de Supabase.
+const dbFalsa = (respuesta) => ({
+  from: () => {
+    const q = {
+      delete: () => q,
+      eq: () => q,
+      select: () => q,
+      maybeSingle: () => Promise.resolve(respuesta),
+    };
+    return q;
+  },
+});
+
+const crearRes = () => {
+  const res = { codigo: 200, cuerpo: null };
+  res.status = (codigo) => { res.codigo = codigo; return res; };
+  res.json = (cuerpo) => { res.cuerpo = cuerpo; return res; };
+  return res;
+};
+
+const pedirBaja = async (respuesta) => {
+  const res = crearRes();
+  const errores = [];
+  const req = { params: { id: ID }, auth: { db: dbFalsa(respuesta), organizacionId: 'org-1' } };
+  await eliminarProducto(req, res, (err) => errores.push(err));
+  return { res, errores };
+};
+
+test('la baja de un producto con ventas devuelve 409 y no el error crudo de Postgres', async () => {
+  const { res, errores } = await pedirBaja({
+    data: null,
+    error: {
+      code: '23503',
+      message:
+        'update or delete on table "productos" violates foreign key constraint "detalle_ventas_producto_id_fkey" on table "detalle_ventas"',
+    },
+  });
+
+  assert.equal(res.codigo, 409);
+  assert.equal(res.cuerpo.success, false);
+  assert.equal(res.cuerpo.code, 'PRODUCTO_CON_HISTORIAL');
+  assert.match(res.cuerpo.message, /ventas ya registradas/);
+  // El mensaje de Postgres no se filtra al cliente.
+  assert.doesNotMatch(res.cuerpo.message, /foreign key|constraint/i);
+  assert.deepEqual(errores, []);
+});
+
+test('la baja de un producto sin ventas borra y responde 200', async () => {
+  const { res, errores } = await pedirBaja({ data: { id: ID, nombre: 'Flan' }, error: null });
+
+  assert.equal(res.codigo, 200);
+  assert.equal(res.cuerpo.success, true);
+  assert.deepEqual(res.cuerpo.data, { id: ID, nombre: 'Flan' });
+  assert.deepEqual(errores, []);
+});
+
+test('la baja de un producto de otra organización responde 404', async () => {
+  const { res } = await pedirBaja({ data: null, error: null });
+
+  assert.equal(res.codigo, 404);
+  assert.equal(res.cuerpo.success, false);
+});
+
+test('cualquier otro error de la base sigue yendo al errorHandler', async () => {
+  const falla = { code: '08006', message: 'connection failure' };
+  const { errores } = await pedirBaja({ data: null, error: falla });
+
+  assert.deepEqual(errores, [falla]);
 });
