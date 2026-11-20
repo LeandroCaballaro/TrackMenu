@@ -16,6 +16,12 @@ por mora) y es el único que puede modificarlas o darlas de baja. Un `admin`
 manda dentro de su organización y en ninguna otra. La cuenta de prueba es
 `superadmin@example.org`.
 
+Para la base, el superadmin **cumple cualquier regla escrita para un admin**:
+`mi_rol()` informa `admin` cuando quien pregunta es superadministrador, y el
+`requireRole` del backend lo deja pasar por cualquier rol. Sin eso recibía
+`403` en todo lo operativo y veía media aplicación. Para distinguirlo de
+verdad está `es_superadmin()`.
+
 El primer usuario que registra un negocio queda como **admin**. Al resto lo suma
 él mismo con una invitación, eligiendo con qué rol entra.
 

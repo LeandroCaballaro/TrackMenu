@@ -477,6 +477,9 @@ export const authService = {
         }
         authState.backendConnected = true
         persistSession()
+        // Trae el plano y las reservas de la base: antes sólo existían en el
+        // navegador donde se habían creado.
+        await sincronizarConServidor()
         return { success: true, message: json.message }
       }
 
@@ -1910,6 +1913,121 @@ const headersConAuth = (conJson = false) => {
 }
 
 // Servicio real de Mesas y Pedidos Activos (sincronizado con catálogo, stock y ventas)
+const conBackend = () => Boolean(authState.token) && !String(authState.token).startsWith('demo_token_')
+
+const guardarMapaEnServidor = async (config) => {
+  if (!conBackend()) return
+  try {
+    await fetch('/api/mapa', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authState.token}` },
+      body: JSON.stringify({ config }),
+    })
+  } catch {
+    // sin servidor queda la copia local y se reintenta al volver a guardar
+  }
+}
+
+// Trae de la base el plano y las reservas y los deja en la caché local que
+// usan las pantallas. Se llama al entrar y al abrir el salón.
+export const sincronizarConServidor = async () => {
+  if (!conBackend()) return { success: false }
+  const orgId = authState.organizacion?.id || 'org_demo_1'
+  const cabeceras = { Authorization: `Bearer ${authState.token}` }
+
+  try {
+    const [mapa, reservas] = await Promise.all([
+      fetch('/api/mapa', { headers: cabeceras }).then((r) => r.json()),
+      fetch('/api/reservas', { headers: cabeceras }).then((r) => r.json()),
+    ])
+
+    if (mapa?.success && mapa.data) {
+      localStorage.setItem(`trackmenu_mapa_mesas_${orgId}`, JSON.stringify(mapa.data))
+    }
+    if (reservas?.success && Array.isArray(reservas.data)) {
+      localStorage.setItem(`trackmenu_reservas_${orgId}`, JSON.stringify(reservas.data))
+    }
+    return { success: true }
+  } catch {
+    return { success: false }
+  }
+}
+
+// Las reservas se guardan en la base además de la caché local. Las firmas de
+// reservasService son síncronas (las usan muchas pantallas), así que el envío
+// al servidor va por detrás y el id/código local se reemplaza por el real.
+// El negocio del cliente sin sesión viene por la URL (?negocio=...), igual que
+// en la carta del QR.
+const organizacionDelCliente = () => {
+  if (authState.organizacion?.id) return authState.organizacion.id
+  try {
+    return new URLSearchParams(location.search).get('negocio') || ''
+  } catch {
+    return ''
+  }
+}
+
+// Devuelve el código real de la reserva, o null si no se pudo guardar. Quien
+// la crea tiene que avisar el fallo: confirmarle al cliente una reserva que el
+// local nunca va a ver es peor que no tomarla.
+const reservaAlServidor = async (reserva) => {
+  const cuerpo = {
+    fecha: reserva.fecha,
+    hora: reserva.hora,
+    personas: reserva.personas,
+    mesa_numero: reserva.mesa_numero,
+    mesa_capacidad: reserva.mesa_capacidad,
+    nombre_cliente: reserva.nombre_cliente,
+    telefono: reserva.telefono,
+    notas: reserva.notas,
+    sena_pagada: true,
+    sena_metodo: reserva.sena_metodo,
+    sena_comprobante: reserva.sena_comprobante,
+  }
+
+  const org = organizacionDelCliente()
+  const conSesion = conBackend()
+  if (!conSesion && !org) return { success: false, message: 'Para reservar entrá por el enlace o el QR del local.' }
+
+  try {
+    const res = await fetch(conSesion ? '/api/reservas' : `/api/publico/reservas/${org}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(conSesion ? { Authorization: `Bearer ${authState.token}` } : {}),
+      },
+      body: JSON.stringify(cuerpo),
+    })
+    const json = await res.json()
+    if (!json?.success) return { success: false, message: json?.message }
+
+    // El código que vale es el que generó el servidor: si el cliente se queda
+    // con el local, consulta su reserva y no la encuentra.
+    try {
+      localStorage.setItem('trackmenu_cliente_reserva_codigo', json.data.codigo_confirmacion)
+    } catch {
+      // sin almacenamiento el código igual se le muestra en pantalla
+    }
+    if (conSesion) await sincronizarConServidor()
+    return { success: true, codigo: json.data.codigo_confirmacion, sena: json.data.sena_monto }
+  } catch {
+    return { success: false, message: 'No se pudo conectar con el servidor del local.' }
+  }
+}
+
+
+const reservaCerradaEnServidor = async (reserva, accion) => {
+  if (!conBackend() || !reserva?.id) return
+  try {
+    await fetch(`/api/reservas/${reserva.id}${accion === 'asistencia' ? '/asistencia' : ''}`, {
+      method: accion === 'asistencia' ? 'PATCH' : 'DELETE',
+      headers: { Authorization: `Bearer ${authState.token}` },
+    })
+  } catch {
+    // idem
+  }
+}
+
 export const mesasService = {
   obtenerConfigMapa() {
     const orgId = authState.organizacion?.id || 'org_demo_1'
@@ -1941,10 +2059,15 @@ export const mesasService = {
       if (typeof window !== 'undefined') {
         localStorage.setItem(key, JSON.stringify(config))
       }
-      return { success: true }
-    } catch (err) {
+    } catch {
       return { success: false, message: 'No se pudo guardar la configuración del mapa.' }
     }
+
+    // El plano tiene que quedar en la base: en el navegador lo veía una sola
+    // máquina. La firma sigue siendo síncrona para no tocar los componentes,
+    // así que el guardado remoto va por detrás.
+    guardarMapaEnServidor(config)
+    return { success: true }
   },
 
   restablecerConfigMapa() {
@@ -2575,7 +2698,7 @@ export const reservasService = {
     return HORARIOS_RESERVA.filter((h) => this.verificarDisponibilidad({ fecha, hora: h, personas }).disponible)
   },
 
-  crearReserva({
+  async crearReserva({
     fecha,
     hora,
     personas,
@@ -2636,12 +2759,25 @@ export const reservasService = {
       return { success: false, message: 'No se pudo guardar la reserva.' }
     }
 
-    this.guardarCodigoReservaCliente(codigoConfirmacion)
+    const enServidor = await reservaAlServidor(nueva)
+    if (!enServidor.success) {
+      // Se deshace la copia local: una reserva que no llegó al local no existe.
+      this._guardarLista(this.listarReservas().filter((r) => r.id !== nueva.id))
+      return {
+        success: false,
+        message: enServidor.message || 'No se pudo registrar la reserva en el local. Probá de nuevo.',
+      }
+    }
+
+    nueva.codigo_confirmacion = enServidor.codigo
+    nueva.sena_monto = enServidor.sena ?? nueva.sena_monto
+    this._guardarLista(this.listarReservas().map((r) => (r.id === nueva.id ? nueva : r)))
+    this.guardarCodigoReservaCliente(nueva.codigo_confirmacion)
 
     return {
       success: true,
       data: nueva,
-      message: `Reserva confirmada (${codigoConfirmacion}) para ${nueva.personas} personas el ${nueva.fecha} a las ${nueva.hora} hs (Mesa ${nueva.mesa_numero}).`,
+      message: `Reserva confirmada (${nueva.codigo_confirmacion}) para ${nueva.personas} personas el ${nueva.fecha} a las ${nueva.hora} hs (Mesa ${nueva.mesa_numero}).`,
     }
   },
 
@@ -2712,6 +2848,8 @@ export const reservasService = {
       return { success: false, message: 'No se pudo actualizar la reserva.' }
     }
 
+    reservaCerradaEnServidor(todas[idx], 'asistencia')
+
     return {
       success: true,
       data: todas[idx],
@@ -2720,8 +2858,10 @@ export const reservasService = {
   },
 
   cancelarReserva(id) {
+    const reserva = this.listarReservas().find((r) => r.id === id)
     const todas = this.listarReservas().filter((r) => r.id !== id)
     const ok = this._guardarLista(todas)
+    if (ok) reservaCerradaEnServidor(reserva, 'cancelar')
     return { success: ok }
   },
 }
